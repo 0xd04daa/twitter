@@ -186,15 +186,15 @@ interface MyListTableProps {
 function MyListTable({ handles, onRemove, onRemoveAll, onToggleTweets, onToggleProfileUpdates, onToggleFollows }: MyListTableProps) {
   return (
     <div className="bg-gray-900 rounded-lg overflow-hidden">
-      <table className="w-full">
+      <table className="w-full table-fixed">
         <thead>
           <tr className="border-b border-gray-800">
-            <th className="text-left px-4 py-3 text-gray-400 font-medium text-sm"></th>
+            <th className="text-left px-4 py-3 text-gray-400 font-medium text-sm w-20"></th>
             <th className="text-left px-4 py-3 text-gray-400 font-medium text-sm">Handle</th>
-            <th className="text-center px-4 py-3 text-gray-400 font-medium text-sm">Tweets</th>
-            <th className="text-center px-4 py-3 text-gray-400 font-medium text-sm">Profile Updates</th>
-            <th className="text-center px-4 py-3 text-gray-400 font-medium text-sm">Follows</th>
-            <th className="text-right px-4 py-3">
+            <th className="text-center px-4 py-3 text-gray-400 font-medium text-sm w-32">Tweets</th>
+            <th className="text-center px-4 py-3 text-gray-400 font-medium text-sm w-40">Profile Updates</th>
+            <th className="text-center px-4 py-3 text-gray-400 font-medium text-sm w-32">Follows</th>
+            <th className="text-right px-4 py-3 w-28">
               <button
                 onClick={onRemoveAll}
                 className="text-red-400 hover:text-red-300 text-sm font-medium"
@@ -214,54 +214,74 @@ function MyListTable({ handles, onRemove, onRemoveAll, onToggleTweets, onToggleP
           ) : (
             handles.map((handle, index) => (
               <tr key={handle.handle} className="border-b border-gray-800 hover:bg-gray-800/50">
-                <td className="px-4 py-3 text-gray-500 text-sm">
-                  <div className="flex items-center gap-1">
+                <td className="px-4 py-3 text-gray-500 text-sm w-20">
+                  <div className="flex items-center gap-1 cursor-pointer" title="助推">
                     <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clipRule="evenodd" />
                     </svg>
                     {index}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-white">@{handle.handle}</td>
-                <td className="text-center px-4 py-3">
-                  <button
-                    onClick={() => onToggleTweets(handle.handle)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                      handle.trackTweets ? 'bg-blue-600' : 'bg-gray-700'
-                    }`}
+                <td className="px-4 py-3 text-white">
+                  <a
+                    href={`https://twitter.com/${handle.handle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-blue-400 transition-colors"
+                    title="在推特中打开"
                   >
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M13.6 2.5h2.7l-5.9 6.7 6.9 9.2h-5.4l-4.3-5.6-4.9 5.6H.0l6.3-7.2L.3 2.5h5.6l3.9 5.1 4.5-5.1h1.3zm-1 14.2h1.5L5.4 4.1H3.8l8.8 12.6z" />
-                    </svg>
-                  </button>
+                    @{handle.handle}
+                  </a>
                 </td>
-                <td className="text-center px-4 py-3">
-                  <button
-                    onClick={() => onToggleProfileUpdates(handle.handle)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                      handle.trackProfileUpdates ? 'bg-blue-600' : 'bg-gray-700'
-                    }`}
-                  >
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+                <td className="text-center px-4 py-3 w-32">
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => onToggleTweets(handle.handle)}
+                      title="隐藏推文"
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                        handle.trackTweets ? 'bg-blue-600' : 'bg-gray-700'
+                      }`}
+                    >
+                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M13.6 2.5h2.7l-5.9 6.7 6.9 9.2h-5.4l-4.3-5.6-4.9 5.6H.0l6.3-7.2L.3 2.5h5.6l3.9 5.1 4.5-5.1h1.3zm-1 14.2h1.5L5.4 4.1H3.8l8.8 12.6z" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
-                <td className="text-center px-4 py-3">
-                  <button
-                    onClick={() => onToggleFollows(handle.handle)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                      handle.trackFollows ? 'bg-pink-600' : 'bg-gray-700'
-                    }`}
-                  >
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
-                    </svg>
-                  </button>
+                <td className="text-center px-4 py-3 w-40">
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => onToggleProfileUpdates(handle.handle)}
+                      title="隐藏个人资料更新"
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                        handle.trackProfileUpdates ? 'bg-blue-600' : 'bg-gray-700'
+                      }`}
+                    >
+                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
-                <td className="text-right px-4 py-3">
+                <td className="text-center px-4 py-3 w-32">
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => onToggleFollows(handle.handle)}
+                      title="隐藏关注"
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                        handle.trackFollows ? 'bg-pink-600' : 'bg-gray-700'
+                      }`}
+                    >
+                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+                <td className="text-right px-4 py-3 w-28">
                   <button
                     onClick={() => onRemove(handle.handle)}
+                    title="在列表中删除"
                     className="text-gray-500 hover:text-red-400 transition-colors"
                   >
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
