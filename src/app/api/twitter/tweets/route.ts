@@ -89,6 +89,10 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
     }
 
     return data.data.tweets.map((t) => {
+      // For retweets, use the original tweet's content
+      const isRetweet = !!t.retweeted_tweet;
+      const sourceTweet = isRetweet ? t.retweeted_tweet! : t;
+
       const media = t.extendedEntities?.media?.map((m) => {
         let url = m.media_url_https || m.url || '';
         let type: 'photo' | 'video' | 'gif' = 'photo';
@@ -111,16 +115,18 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
 
       return {
         id: t.id,
-        text: t.text,
-        authorHandle: t.author.userName,
-        authorName: t.author.name,
-        authorAvatar: t.author.profilePicture,
-        createdAt: t.createdAt,
-        retweet: t.retweeted_tweet
+        // For retweets, show the original tweet's content
+        text: sourceTweet.text,
+        authorHandle: sourceTweet.author.userName,
+        authorName: sourceTweet.author.name,
+        authorAvatar: sourceTweet.author.profilePicture,
+        createdAt: sourceTweet.createdAt,
+        // For retweets, store who retweeted it
+        retweetedBy: isRetweet
           ? {
-              authorHandle: t.retweeted_tweet.author.userName,
-              authorName: t.retweeted_tweet.author.name,
-              authorAvatar: t.retweeted_tweet.author.profilePicture,
+              authorHandle: t.author.userName,
+              authorName: t.author.name,
+              authorAvatar: t.author.profilePicture,
             }
           : undefined,
         quotedTweet: t.quoted_tweet

@@ -16,7 +16,8 @@ export interface Tweet {
   authorName: string;
   authorAvatar?: string;
   createdAt: string;
-  retweet?: {
+  // For retweets: who retweeted this tweet
+  retweetedBy?: {
     authorHandle: string;
     authorName: string;
     authorAvatar?: string;

@@ -158,7 +158,7 @@ interface TweetCardProps {
 }
 
 function TweetCard({ tweet }: TweetCardProps) {
-  const tweetType = tweet.retweet
+  const tweetType = tweet.retweetedBy
     ? { name: 'retweet', icon: (
         <div className="w-7 h-7 rounded-lg bg-[#0f2621] flex items-center justify-center text-[#20e0a3]">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -196,12 +196,12 @@ function TweetCard({ tweet }: TweetCardProps) {
         {tweetType.icon}
       </div>
       {/* Retweet indicator */}
-      {tweet.retweet && (
+      {tweet.retweetedBy && (
         <div className="flex items-center gap-2 text-gray-500 text-sm mb-2">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
           </svg>
-          <span>{tweet.authorName} retweeted</span>
+          <span>{tweet.retweetedBy.authorName} reposted</span>
         </div>
       )}
 
