@@ -25,13 +25,27 @@ export async function GET() {
 
     const data = await response.json();
 
+    // Find tweets with retweeted_tweet to inspect structure
+    const tweets = data.data?.tweets || [];
+    const retweetExample = tweets.find((t: Record<string, unknown>) => t.retweeted_tweet);
+
     return NextResponse.json({
       status: response.ok ? 'success' : 'api_error',
       hasKey: true,
       keyPrefix: apiKey.substring(0, 8) + '...',
       apiStatus: response.status,
-      apiResponse: data,
-      tweetCount: data.tweets?.length || 0,
+      tweetCount: tweets.length,
+      // Show first tweet full structure
+      firstTweet: tweets[0] || null,
+      // Show retweet example if found
+      retweetExample: retweetExample || 'No retweets found',
+      // Show all tweet types
+      tweetTypes: tweets.map((t: Record<string, unknown>) => ({
+        id: t.id,
+        hasRetweetedTweet: !!t.retweeted_tweet,
+        hasQuotedTweet: !!t.quoted_tweet,
+        text: typeof t.text === 'string' ? t.text.substring(0, 50) : '',
+      })),
     });
   } catch (error) {
     return NextResponse.json({
