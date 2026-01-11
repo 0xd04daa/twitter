@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ListType } from '@/types';
+import { ListType, TopSubscription } from '@/types';
 import { useStore } from '@/lib/store';
-import { TOP_SUBSCRIPTIONS } from '@/lib/data';
+import { setSubscriptions } from '@/lib/data';
 
 interface ProfileData {
   followersCount: number;
@@ -18,17 +18,41 @@ interface CustomizeFeedProps {
 export function CustomizeFeed({ onAddHandle }: CustomizeFeedProps) {
   const [activeList, setActiveList] = useState<ListType>('myList');
   const [searchQuery, setSearchQuery] = useState('');
+  const [subscriptions, setLocalSubscriptions] = useState<TopSubscription[]>([]);
   const [profileData, setProfileData] = useState<Record<string, ProfileData>>({});
+  const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(true);
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
   const { myList, boosts, removeHandle, removeAllHandles, toggleTrackTweets, toggleTrackProfileUpdates, toggleTrackFollows } = useStore();
 
-  // Fetch profile data for all handles in TOP_SUBSCRIPTIONS
+  // Fetch subscriptions from admin API
+  useEffect(() => {
+    const fetchSubscriptionsData = async () => {
+      try {
+        const response = await fetch('/api/admin/subscriptions');
+        if (response.ok) {
+          const data = await response.json();
+          setLocalSubscriptions(data.subscriptions);
+          // Update the cached subscriptions for isHandleAllowed
+          setSubscriptions(data.subscriptions);
+        }
+      } catch (error) {
+        console.error('Failed to fetch subscriptions:', error);
+      } finally {
+        setIsLoadingSubscriptions(false);
+      }
+    };
+
+    fetchSubscriptionsData();
+  }, []);
+
+  // Fetch profile data for all handles in subscriptions
   useEffect(() => {
     const fetchProfiles = async () => {
-      const handles = TOP_SUBSCRIPTIONS.map((sub) => sub.handle);
-      if (handles.length === 0) return;
+      if (subscriptions.length === 0) return;
 
+      const handles = subscriptions.map((sub) => sub.handle);
       setIsLoadingProfiles(true);
+
       try {
         const response = await fetch('/api/twitter/profile', {
           method: 'POST',
@@ -59,9 +83,9 @@ export function CustomizeFeed({ onAddHandle }: CustomizeFeedProps) {
     };
 
     fetchProfiles();
-  }, []);
+  }, [subscriptions]);
 
-  const filteredTopSubscriptions = TOP_SUBSCRIPTIONS.filter((sub) =>
+  const filteredTopSubscriptions = subscriptions.filter((sub) =>
     sub.handle.toLowerCase().includes(searchQuery.toLowerCase())
   ).map((sub) => ({
     ...sub,
@@ -71,6 +95,8 @@ export function CustomizeFeed({ onAddHandle }: CustomizeFeedProps) {
   const filteredMyList = myList.filter((handle) =>
     handle.handle.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const isLoading = isLoadingSubscriptions || isLoadingProfiles;
 
   return (
     <div className="flex-1 p-6 overflow-y-auto">
@@ -110,7 +136,7 @@ export function CustomizeFeed({ onAddHandle }: CustomizeFeedProps) {
           </button>
           {activeList === 'topSubscriptions' && (
             <span className="text-gray-500 text-sm">
-              {isLoadingProfiles ? 'Loading...' : 'Updated recently'}
+              {isLoading ? 'Loading...' : 'Updated recently'}
             </span>
           )}
         </div>
@@ -147,6 +173,7 @@ export function CustomizeFeed({ onAddHandle }: CustomizeFeedProps) {
           subscriptions={filteredTopSubscriptions}
           myListHandles={myList.map((h) => h.handle.toLowerCase())}
           onAdd={onAddHandle}
+          isLoading={isLoadingSubscriptions}
         />
       )}
     </div>
@@ -271,9 +298,18 @@ interface TopSubscriptionsTableProps {
   }>;
   myListHandles: string[];
   onAdd: (handle: string) => void;
+  isLoading?: boolean;
 }
 
-function TopSubscriptionsTable({ subscriptions, myListHandles, onAdd }: TopSubscriptionsTableProps) {
+function TopSubscriptionsTable({ subscriptions, myListHandles, onAdd, isLoading }: TopSubscriptionsTableProps) {
+  if (isLoading) {
+    return (
+      <div className="bg-gray-900 rounded-lg p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-900 rounded-lg overflow-hidden">
       <table className="w-full">
@@ -287,38 +323,46 @@ function TopSubscriptionsTable({ subscriptions, myListHandles, onAdd }: TopSubsc
           </tr>
         </thead>
         <tbody>
-          {subscriptions.map((sub) => {
-            const isAdded = myListHandles.includes(sub.handle.toLowerCase());
-            return (
-              <tr key={sub.handle} className="border-b border-gray-800 hover:bg-gray-800/50">
-                <td className="px-4 py-3 text-gray-500 text-sm">{sub.rank}</td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => !isAdded && onAdd(sub.handle)}
-                    disabled={isAdded}
-                    className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
-                      isAdded
-                        ? 'bg-green-600 cursor-default'
-                        : 'bg-gray-700 hover:bg-gray-600 cursor-pointer'
-                    }`}
-                  >
-                    {isAdded ? (
-                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </button>
-                </td>
-                <td className="px-4 py-3 text-white">@{sub.handle}</td>
-                <td className="text-right px-4 py-3 text-gray-300">{sub.subscribers.toLocaleString()}</td>
-                <td className="text-right px-4 py-3 text-gray-300">{sub.boosts.toLocaleString()}</td>
-              </tr>
-            );
-          })}
+          {subscriptions.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="text-center py-8 text-gray-500">
+                No subscriptions available.
+              </td>
+            </tr>
+          ) : (
+            subscriptions.map((sub) => {
+              const isAdded = myListHandles.includes(sub.handle.toLowerCase());
+              return (
+                <tr key={sub.handle} className="border-b border-gray-800 hover:bg-gray-800/50">
+                  <td className="px-4 py-3 text-gray-500 text-sm">{sub.rank}</td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => !isAdded && onAdd(sub.handle)}
+                      disabled={isAdded}
+                      className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
+                        isAdded
+                          ? 'bg-green-600 cursor-default'
+                          : 'bg-gray-700 hover:bg-gray-600 cursor-pointer'
+                      }`}
+                    >
+                      {isAdded ? (
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-white">@{sub.handle}</td>
+                  <td className="text-right px-4 py-3 text-gray-300">{sub.subscribers.toLocaleString()}</td>
+                  <td className="text-right px-4 py-3 text-gray-300">{sub.boosts.toLocaleString()}</td>
+                </tr>
+              );
+            })
+          )}
         </tbody>
       </table>
     </div>

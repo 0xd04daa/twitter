@@ -20,26 +20,15 @@ function formatTimeAgo(dateString: string): string {
 }
 
 export function TwitterAlerts() {
-  const { myList, tweets, isPaused, addTweets, togglePause } = useStore();
+  const { myList, tweets, addTweets } = useStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isHovering, setIsHovering] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Combined pause state: paused when hovering
-  const shouldPause = isHovering;
-
-  // Update store pause state based on hover
-  useEffect(() => {
-    if (isHovering && !isPaused) {
-      togglePause();
-    } else if (!isHovering && isPaused) {
-      togglePause();
-    }
-  }, [isHovering, isPaused, togglePause]);
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchTweets = useCallback(async () => {
-    if (shouldPause || myList.length === 0) return;
+    if (myList.length === 0) return;
 
     const handlesToFetch = myList.filter((h) => h.trackTweets).map((h) => h.handle);
     if (handlesToFetch.length === 0) return;
@@ -62,28 +51,43 @@ export function TwitterAlerts() {
       if (data.tweets) {
         addTweets(data.tweets);
       }
+      setHasFetchedOnce(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch tweets');
     } finally {
       setIsLoading(false);
     }
-  }, [shouldPause, myList, addTweets]);
+  }, [myList, addTweets]);
 
-  // Initial fetch and polling
+  // Initial fetch - always runs once
   useEffect(() => {
-    fetchTweets();
+    if (!hasFetchedOnce && myList.length > 0) {
+      fetchTweets();
+    }
+  }, [fetchTweets, hasFetchedOnce, myList.length]);
 
-    const interval = setInterval(() => {
-      if (!shouldPause) {
-        fetchTweets();
+  // Polling - only when not hovering
+  useEffect(() => {
+    if (isHovering) {
+      // Clear interval when hovering
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
-    }, 30000); // Poll every 30 seconds
-    return () => clearInterval(interval);
-  }, [fetchTweets, shouldPause]);
+    } else {
+      // Start polling when not hovering
+      intervalRef.current = setInterval(fetchTweets, 30000);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isHovering, fetchTweets]);
 
   return (
     <div
-      ref={containerRef}
       className="flex-1 p-6 overflow-y-auto relative"
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -120,7 +124,7 @@ export function TwitterAlerts() {
         </div>
       )}
 
-      {!isLoading && tweets.length === 0 && myList.length > 0 && (
+      {!isLoading && tweets.length === 0 && myList.length > 0 && hasFetchedOnce && (
         <div className="text-center py-12 text-gray-500">
           <p>No tweets yet.</p>
           <p className="text-sm mt-2">Tweets will appear here once they are fetched.</p>
