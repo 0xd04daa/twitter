@@ -22,7 +22,7 @@ export function CustomizeFeed({ onAddHandle }: CustomizeFeedProps) {
   const [profileData, setProfileData] = useState<Record<string, ProfileData>>({});
   const [isLoadingSubscriptions, setIsLoadingSubscriptions] = useState(true);
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
-  const { myList, boosts, removeHandle, removeAllHandles, toggleTrackTweets, toggleTrackProfileUpdates, toggleTrackFollows } = useStore();
+  const { myList, removeHandle, removeAllHandles, toggleTrackTweets, toggleTrackProfileUpdates, toggleTrackFollows } = useStore();
 
   // Fetch subscriptions from admin API
   useEffect(() => {
@@ -134,20 +134,9 @@ export function CustomizeFeed({ onAddHandle }: CustomizeFeedProps) {
           >
             Top Subscriptions
           </button>
-          {activeList === 'topSubscriptions' && (
-            <span className="text-gray-500 text-sm">
-              {isLoading ? 'Loading...' : 'Updated recently'}
-            </span>
-          )}
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-white" title="Available boosts. You earn 1 boost per 1 SOL traded.">
-            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clipRule="evenodd" />
-            </svg>
-            <span>{boosts.toLocaleString()}</span>
-          </div>
           <input
             type="text"
             placeholder="Search handle"

@@ -25,6 +25,8 @@ function getDefaultSubscriptions(): Subscription[] {
   }
   return [
     { rank: 1, handle: 'ByteEchoC', subscribers: 0, boosts: 0 },
+    { rank: 2, handle: '1Keeper_com', subscribers: 0, boosts: 0 },
+    { rank: 3, handle: 'yiyun_dan1', subscribers: 0, boosts: 0 },
   ];
 }
 
