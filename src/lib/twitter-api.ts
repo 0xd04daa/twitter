@@ -1,4 +1,4 @@
-import { Tweet } from '@/types';
+import { Tweet, TweetType } from '@/types';
 
 const API_BASE = 'https://api.twitterapi.io/twitter';
 
@@ -49,6 +49,9 @@ export class TwitterAPI {
           profilePicture?: string;
         };
         createdAt: string;
+        isReply?: boolean;
+        inReplyToId?: string;
+        inReplyToUsername?: string;
         retweetedTweet?: {
           author: {
             userName: string;
@@ -80,41 +83,55 @@ export class TwitterAPI {
     }>('/user/last_tweets', params);
 
     return {
-      tweets: data.tweets.map((t) => ({
-        id: t.id,
-        text: t.text,
-        authorHandle: t.author.userName,
-        authorName: t.author.name,
-        authorAvatar: t.author.profilePicture,
-        createdAt: t.createdAt,
-        retweet: t.retweetedTweet ? {
-          authorHandle: t.retweetedTweet.author.userName,
-          authorName: t.retweetedTweet.author.name,
-          authorAvatar: t.retweetedTweet.author.profilePicture,
-        } : undefined,
-        quotedTweet: t.quotedTweet ? {
-          id: t.quotedTweet.id,
-          text: t.quotedTweet.text,
-          authorHandle: t.quotedTweet.author.userName,
-          authorName: t.quotedTweet.author.name,
-          authorAvatar: t.quotedTweet.author.profilePicture,
-          createdAt: t.quotedTweet.createdAt,
-          trackTweets: false,
-          trackProfileUpdates: false,
-          trackFollows: false,
-        } : undefined,
-        media: t.media?.map((m) => ({
-          type: m.type as 'photo' | 'video' | 'gif',
-          url: m.url,
-          previewUrl: m.preview_image_url,
-        })),
-        metrics: {
-          likes: t.likeCount || 0,
-          retweets: t.retweetCount || 0,
-          replies: t.replyCount || 0,
-          views: t.viewCount || 0,
-        },
-      })),
+      tweets: data.tweets.map((t) => {
+        const isRetweet = !!t.retweetedTweet;
+        const isQuote = !!t.quotedTweet;
+        const isReply = !!t.isReply || !!t.inReplyToId;
+
+        let tweetType: TweetType = 'tweet';
+        if (isRetweet) tweetType = 'retweet';
+        else if (isQuote) tweetType = 'quote';
+        else if (isReply) tweetType = 'reply';
+
+        return {
+          id: t.id,
+          text: t.text,
+          tweetType,
+          authorHandle: t.author.userName,
+          authorName: t.author.name,
+          authorAvatar: t.author.profilePicture,
+          createdAt: t.createdAt,
+          retweetedBy: t.retweetedTweet ? {
+            authorHandle: t.retweetedTweet.author.userName,
+            authorName: t.retweetedTweet.author.name,
+            authorAvatar: t.retweetedTweet.author.profilePicture,
+          } : undefined,
+          inReplyTo: isReply && t.inReplyToId ? {
+            id: t.inReplyToId,
+            authorHandle: t.inReplyToUsername || '',
+          } : undefined,
+          quotedTweet: t.quotedTweet ? {
+            id: t.quotedTweet.id,
+            text: t.quotedTweet.text,
+            tweetType: 'tweet' as TweetType,
+            authorHandle: t.quotedTweet.author.userName,
+            authorName: t.quotedTweet.author.name,
+            authorAvatar: t.quotedTweet.author.profilePicture,
+            createdAt: t.quotedTweet.createdAt,
+          } : undefined,
+          media: t.media?.map((m) => ({
+            type: m.type as 'photo' | 'video' | 'gif',
+            url: m.url,
+            previewUrl: m.preview_image_url,
+          })),
+          metrics: {
+            likes: t.likeCount || 0,
+            retweets: t.retweetCount || 0,
+            replies: t.replyCount || 0,
+            views: t.viewCount || 0,
+          },
+        };
+      }),
       next_cursor: data.next_cursor,
     };
   }

@@ -158,50 +158,139 @@ interface TweetCardProps {
 }
 
 function TweetCard({ tweet }: TweetCardProps) {
-  const tweetType = tweet.retweetedBy
-    ? { name: 'retweet', icon: (
-        <div className="w-7 h-7 rounded-lg bg-[#0f2621] flex items-center justify-center text-[#20e0a3]">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-          </svg>
-        </div>
-      ) }
-    : tweet.quotedTweet
-      ? { name: 'quote', icon: (
-          <div className="w-7 h-7 rounded-lg bg-[#0f1330] flex items-center justify-center text-[#5b68ff]">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M7.17 6.17A4.001 4.001 0 001 10v4a1 1 0 001 1h4a1 1 0 001-1v-4a1 1 0 00-1-1H4a2 2 0 012-2 1 1 0 001-1V6a1 1 0 00-1-1H5a3 3 0 00-2.83 2.17zM17 6h-4a1 1 0 00-1 1v1a1 1 0 001 1h2a2 2 0 00-2 2v4a1 1 0 001 1h4a1 1 0 001-1v-4a4 4 0 00-4-4 1 1 0 010-2z" />
-            </svg>
-          </div>
-        ) }
-      : (!tweet.media || tweet.media.length === 0)
-        ? { name: 'text', icon: (
-            <div className="w-7 h-7 rounded-lg bg-[#0f1330] flex items-center justify-center text-[#7b6bff]">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M5 4a1 1 0 011-1h8a1 1 0 110 2h-3v10a1 1 0 11-2 0V5H6a1 1 0 01-1-1z" />
+  // Twitter official style icons for each tweet type
+  const getTweetTypeConfig = () => {
+    switch (tweet.tweetType) {
+      case 'retweet':
+        return {
+          name: 'retweet',
+          label: '转推',
+          icon: (
+            <div className="w-7 h-7 rounded-lg bg-[#00ba7c]/10 flex items-center justify-center">
+              {/* Twitter Retweet Icon */}
+              <svg className="w-4 h-4 text-[#00ba7c]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z" />
               </svg>
             </div>
-          ) }
-        : { name: 'tweet', icon: (
-            <div className="w-7 h-7 rounded-lg bg-[#0d1625] flex items-center justify-center text-[#58a8ff]">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M5 4a1 1 0 011-1h8a1 1 0 010 2H6a1 1 0 01-1-1zM4 9a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zm2 4a1 1 0 000 2h8a1 1 0 100-2H6z" />
+          ),
+        };
+      case 'quote':
+        return {
+          name: 'quote',
+          label: '引用',
+          icon: (
+            <div className="w-7 h-7 rounded-lg bg-[#1d9bf0]/10 flex items-center justify-center">
+              {/* Twitter Quote Icon */}
+              <svg className="w-4 h-4 text-[#1d9bf0]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14.23 2.854c.98-.977 2.56-.977 3.54 0l3.38 3.378c.97.977.97 2.559 0 3.536L9.91 21H3v-6.914L14.23 2.854zm2.12 1.414c-.19-.195-.51-.195-.7 0L5 14.914V19h4.09L19.73 8.354c.2-.196.2-.512 0-.708l-3.38-3.378zM14.75 19l-2 2H21v-2h-6.25z" />
               </svg>
             </div>
-          ) };
+          ),
+        };
+      case 'reply':
+        return {
+          name: 'reply',
+          label: '回复',
+          icon: (
+            <div className="w-7 h-7 rounded-lg bg-[#1d9bf0]/10 flex items-center justify-center">
+              {/* Twitter Reply Icon */}
+              <svg className="w-4 h-4 text-[#1d9bf0]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.37 2.77 6.08 6.138 6.01l.351-.01h1.761v2.3l5.087-2.81c1.951-1.08 3.163-3.13 3.163-5.36 0-3.39-2.744-6.13-6.129-6.13H9.756z" />
+              </svg>
+            </div>
+          ),
+        };
+      case 'profile_name':
+        return {
+          name: 'profile_name',
+          label: '改名',
+          icon: (
+            <div className="w-7 h-7 rounded-lg bg-[#f91880]/10 flex items-center justify-center">
+              {/* Profile/User Icon */}
+              <svg className="w-4 h-4 text-[#f91880]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M5.651 19h12.698c-.337-1.8-1.023-3.21-1.945-4.19C15.318 13.65 13.838 13 12 13s-3.317.65-4.404 1.81c-.922.98-1.608 2.39-1.945 4.19zm.486-5.56C7.627 11.85 9.648 11 12 11s4.373.85 5.863 2.44c1.477 1.58 2.366 3.8 2.632 6.46l.11 1.1H3.395l.11-1.1c.266-2.66 1.155-4.88 2.632-6.46zM12 4c-1.105 0-2 .9-2 2s.895 2 2 2 2-.9 2-2-.895-2-2-2zM8 6c0-2.21 1.791-4 4-4s4 1.79 4 4-1.791 4-4 4-4-1.79-4-4z" />
+              </svg>
+            </div>
+          ),
+        };
+      case 'profile_avatar':
+        return {
+          name: 'profile_avatar',
+          label: '改头像',
+          icon: (
+            <div className="w-7 h-7 rounded-lg bg-[#794bc4]/10 flex items-center justify-center">
+              {/* Camera/Image Icon */}
+              <svg className="w-4 h-4 text-[#794bc4]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 5.5C3 4.119 4.12 3 5.5 3h13C19.88 3 21 4.119 21 5.5v13c0 1.381-1.12 2.5-2.5 2.5h-13C4.12 21 3 19.881 3 18.5v-13zM5.5 5c-.276 0-.5.224-.5.5v9.086l3-3 3 3 5-5 3 3V5.5c0-.276-.224-.5-.5-.5h-13zM19 15.414l-3-3-5 5-3-3-3 3V18.5c0 .276.224.5.5.5h13c.276 0 .5-.224.5-.5v-3.086zM9.75 7C8.784 7 8 7.784 8 8.75s.784 1.75 1.75 1.75 1.75-.784 1.75-1.75S10.716 7 9.75 7z" />
+              </svg>
+            </div>
+          ),
+        };
+      case 'profile_bio':
+        return {
+          name: 'profile_bio',
+          label: '简介更新',
+          icon: (
+            <div className="w-7 h-7 rounded-lg bg-[#ffd400]/10 flex items-center justify-center">
+              {/* Edit/Pen Icon */}
+              <svg className="w-4 h-4 text-[#ffd400]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+              </svg>
+            </div>
+          ),
+        };
+      default:
+        return {
+          name: 'tweet',
+          label: '推文',
+          icon: (
+            <div className="w-7 h-7 rounded-lg bg-[#1d9bf0]/10 flex items-center justify-center">
+              {/* Twitter Logo / Tweet Icon */}
+              <svg className="w-4 h-4 text-[#1d9bf0]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </div>
+          ),
+        };
+    }
+  };
+
+  const typeConfig = getTweetTypeConfig();
 
   return (
     <div className="relative bg-gray-900 rounded-lg p-4 max-w-[600px] w-full mx-auto">
-      <div className="absolute top-3 right-3" aria-label={tweetType.name}>
-        {tweetType.icon}
+      <div className="absolute top-3 right-3" title={typeConfig.label}>
+        {typeConfig.icon}
       </div>
       {/* Retweet indicator */}
       {tweet.retweetedBy && (
         <div className="flex items-center gap-2 text-gray-500 text-sm mb-2">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z" />
           </svg>
-          <span>{tweet.retweetedBy.authorName} reposted</span>
+          <span>{tweet.retweetedBy.authorName} 转推了</span>
+        </div>
+      )}
+      {/* Reply indicator */}
+      {tweet.inReplyTo && (
+        <div className="flex items-center gap-2 text-gray-500 text-sm mb-2">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.37 2.77 6.08 6.138 6.01l.351-.01h1.761v2.3l5.087-2.81c1.951-1.08 3.163-3.13 3.163-5.36 0-3.39-2.744-6.13-6.129-6.13H9.756z" />
+          </svg>
+          <span>回复 @{tweet.inReplyTo.authorHandle}</span>
+        </div>
+      )}
+      {/* Profile update indicator */}
+      {tweet.profileUpdate && (
+        <div className="flex items-center gap-2 text-gray-500 text-sm mb-2">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5.651 19h12.698c-.337-1.8-1.023-3.21-1.945-4.19C15.318 13.65 13.838 13 12 13s-3.317.65-4.404 1.81c-.922.98-1.608 2.39-1.945 4.19zm.486-5.56C7.627 11.85 9.648 11 12 11s4.373.85 5.863 2.44c1.477 1.58 2.366 3.8 2.632 6.46l.11 1.1H3.395l.11-1.1c.266-2.66 1.155-4.88 2.632-6.46zM12 4c-1.105 0-2 .9-2 2s.895 2 2 2 2-.9 2-2-.895-2-2-2zM8 6c0-2.21 1.791-4 4-4s4 1.79 4 4-1.791 4-4 4-4-1.79-4-4z" />
+          </svg>
+          <span>
+            {tweet.profileUpdate.type === 'name' && '更改了名称'}
+            {tweet.profileUpdate.type === 'avatar' && '更改了头像'}
+            {tweet.profileUpdate.type === 'bio' && '更新了简介'}
+          </span>
         </div>
       )}
 

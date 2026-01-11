@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Tweet } from '@/types';
+import { Tweet, TweetType } from '@/types';
 
 const API_BASE = 'https://api.twitterapi.io/twitter';
 
@@ -24,6 +24,10 @@ interface TwitterApiTweet {
     profilePicture?: string;
   };
   createdAt: string;
+  isReply?: boolean;
+  inReplyToId?: string | null;
+  inReplyToUserId?: string | null;
+  inReplyToUsername?: string | null;
   retweeted_tweet?: {
     id: string;
     text: string;
@@ -109,7 +113,19 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
     return data.data.tweets.map((t) => {
       // For retweets, use the original tweet's content
       const isRetweet = !!t.retweeted_tweet;
+      const isQuote = !!t.quoted_tweet;
+      const isReply = !!t.isReply || !!t.inReplyToId;
       const sourceTweet = isRetweet ? t.retweeted_tweet! : t;
+
+      // Determine tweet type (priority: retweet > quote > reply > tweet)
+      let tweetType: TweetType = 'tweet';
+      if (isRetweet) {
+        tweetType = 'retweet';
+      } else if (isQuote) {
+        tweetType = 'quote';
+      } else if (isReply) {
+        tweetType = 'reply';
+      }
 
       // Helper function to parse media
       const parseMedia = (mediaItems?: MediaItem[]) => {
@@ -142,6 +158,7 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
 
       return {
         id: t.id,
+        tweetType,
         // For retweets, show the original tweet's content
         text: sourceTweet.text,
         authorHandle: sourceTweet.author.userName,
@@ -156,10 +173,18 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
               authorAvatar: t.author.profilePicture,
             }
           : undefined,
+        // For replies, store what tweet this is replying to
+        inReplyTo: isReply && t.inReplyToId
+          ? {
+              id: t.inReplyToId,
+              authorHandle: t.inReplyToUsername || '',
+            }
+          : undefined,
         quotedTweet: quotedTweetSource
           ? {
               id: quotedTweetSource.id,
               text: quotedTweetSource.text,
+              tweetType: 'tweet' as TweetType,
               authorHandle: quotedTweetSource.author?.userName || '',
               authorName: quotedTweetSource.author?.name || '',
               authorAvatar: quotedTweetSource.author?.profilePicture,
