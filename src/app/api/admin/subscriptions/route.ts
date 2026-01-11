@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import fs from 'fs/promises';
-import path from 'path';
 
 const AUTH_COOKIE_NAME = 'admin_auth';
 const AUTH_TOKEN = 'admin_authenticated_token_2024';
-const DATA_FILE = path.join(process.cwd(), 'data', 'subscriptions.json');
 
 interface Subscription {
   rank: number;
@@ -14,42 +11,43 @@ interface Subscription {
   boosts: number;
 }
 
+// In-memory storage (will reset on cold starts, but works for serverless)
+let memorySubscriptions: Subscription[] | null = null;
+
+function getDefaultSubscriptions(): Subscription[] {
+  // Check environment variable first
+  if (process.env.SUBSCRIPTIONS_JSON) {
+    try {
+      return JSON.parse(process.env.SUBSCRIPTIONS_JSON);
+    } catch {
+      console.error('Failed to parse SUBSCRIPTIONS_JSON env var');
+    }
+  }
+  return [
+    { rank: 1, handle: 'ByteEchoC', subscribers: 0, boosts: 0 },
+  ];
+}
+
 async function isAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies();
   const authCookie = cookieStore.get(AUTH_COOKIE_NAME);
   return authCookie?.value === AUTH_TOKEN;
 }
 
-async function ensureDataDir() {
-  const dir = path.dirname(DATA_FILE);
-  try {
-    await fs.access(dir);
-  } catch {
-    await fs.mkdir(dir, { recursive: true });
+function readSubscriptions(): Subscription[] {
+  if (memorySubscriptions === null) {
+    memorySubscriptions = getDefaultSubscriptions();
   }
+  return memorySubscriptions;
 }
 
-async function readSubscriptions(): Promise<Subscription[]> {
-  try {
-    await ensureDataDir();
-    const data = await fs.readFile(DATA_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    // Return default if file doesn't exist
-    return [
-      { rank: 1, handle: 'ByteEchoC', subscribers: 0, boosts: 0 },
-    ];
-  }
-}
-
-async function writeSubscriptions(subscriptions: Subscription[]) {
-  await ensureDataDir();
-  await fs.writeFile(DATA_FILE, JSON.stringify(subscriptions, null, 2));
+function writeSubscriptions(subscriptions: Subscription[]) {
+  memorySubscriptions = subscriptions;
 }
 
 export async function GET() {
   try {
-    const subscriptions = await readSubscriptions();
+    const subscriptions = readSubscriptions();
     return NextResponse.json({ subscriptions });
   } catch (error) {
     console.error('Error reading subscriptions:', error);
@@ -76,7 +74,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const subscriptions = await readSubscriptions();
+    const subscriptions = readSubscriptions();
 
     // Check if already exists
     if (subscriptions.some((s) => s.handle.toLowerCase() === handle.toLowerCase())) {
@@ -95,7 +93,7 @@ export async function POST(request: NextRequest) {
     };
 
     subscriptions.push(newSubscription);
-    await writeSubscriptions(subscriptions);
+    writeSubscriptions(subscriptions);
 
     return NextResponse.json({ success: true, subscription: newSubscription });
   } catch (error) {
@@ -131,7 +129,7 @@ export async function PUT(request: NextRequest) {
       boosts: Number(s.boosts) || 0,
     }));
 
-    await writeSubscriptions(validatedSubscriptions);
+    writeSubscriptions(validatedSubscriptions);
 
     return NextResponse.json({ success: true, subscriptions: validatedSubscriptions });
   } catch (error) {
@@ -159,7 +157,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const subscriptions = await readSubscriptions();
+    const subscriptions = readSubscriptions();
     const filtered = subscriptions.filter(
       (s) => s.handle.toLowerCase() !== handle.toLowerCase()
     );
@@ -170,7 +168,7 @@ export async function DELETE(request: NextRequest) {
       rank: index + 1,
     }));
 
-    await writeSubscriptions(reindexed);
+    writeSubscriptions(reindexed);
 
     return NextResponse.json({ success: true });
   } catch (error) {
