@@ -19,6 +19,27 @@ function formatTimeAgo(dateString: string): string {
   return `${diffDays}d`;
 }
 
+function renderTextWithLinks(text: string) {
+  const urlRegex = /(https?:\/\/[\w.-]+(?:\/[\w\-._~:/?#\[\]@!$&'()*+,;=%]*)?)/gi;
+  const parts = text.split(urlRegex);
+  return parts.map((part, idx) => {
+    if (urlRegex.test(part)) {
+      return (
+        <a
+          key={`link-${idx}-${part}`}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-400 hover:underline break-words"
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={`txt-${idx}`}>{part}</span>;
+  });
+}
+
 export function TwitterAlerts() {
   const { myList, tweets, addTweets, isHoveringFeed, setHoveringFeed } = useStore();
   const [isLoading, setIsLoading] = useState(false);
@@ -92,39 +113,41 @@ export function TwitterAlerts() {
       onMouseEnter={() => setHoveringFeed(true)}
       onMouseLeave={() => setHoveringFeed(false)}
     >
-      {error && (
-        <div className="flex items-center gap-2 p-4 bg-red-900/20 border border-red-600/30 rounded-lg mb-4">
-          <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          <span className="text-red-500">{error}</span>
-        </div>
-      )}
+      <div className="max-w-[640px] mx-auto w-full">
+        {error && (
+          <div className="flex items-center gap-2 p-4 bg-red-900/20 border border-red-600/30 rounded-lg mb-4">
+            <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <span className="text-red-500">{error}</span>
+          </div>
+        )}
 
-      {isLoading && tweets.length === 0 && (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        </div>
-      )}
+        {isLoading && tweets.length === 0 && (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        )}
 
-      {!isLoading && tweets.length === 0 && myList.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          <p>No handles added yet.</p>
-          <p className="text-sm mt-2">Add handles from the Customize Feed tab to start receiving alerts.</p>
-        </div>
-      )}
+        {!isLoading && tweets.length === 0 && myList.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            <p>No handles added yet.</p>
+            <p className="text-sm mt-2">Add handles from the Customize Feed tab to start receiving alerts.</p>
+          </div>
+        )}
 
-      {!isLoading && tweets.length === 0 && myList.length > 0 && hasFetchedOnce && (
-        <div className="text-center py-12 text-gray-500">
-          <p>No tweets yet.</p>
-          <p className="text-sm mt-2">Tweets will appear here once they are fetched.</p>
-        </div>
-      )}
+        {!isLoading && tweets.length === 0 && myList.length > 0 && hasFetchedOnce && (
+          <div className="text-center py-12 text-gray-500">
+            <p>No tweets yet.</p>
+            <p className="text-sm mt-2">Tweets will appear here once they are fetched.</p>
+          </div>
+        )}
 
-      <div className="space-y-4">
-        {tweets.map((tweet) => (
-          <TweetCard key={tweet.id} tweet={tweet} />
-        ))}
+        <div className="space-y-4">
+          {tweets.map((tweet) => (
+            <TweetCard key={tweet.id} tweet={tweet} />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -135,8 +158,43 @@ interface TweetCardProps {
 }
 
 function TweetCard({ tweet }: TweetCardProps) {
+  const tweetType = tweet.retweet
+    ? { name: 'retweet', icon: (
+        <div className="w-7 h-7 rounded-lg bg-[#0f2621] flex items-center justify-center text-[#20e0a3]">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+          </svg>
+        </div>
+      ) }
+    : tweet.quotedTweet
+      ? { name: 'quote', icon: (
+          <div className="w-7 h-7 rounded-lg bg-[#0f1330] flex items-center justify-center text-[#5b68ff]">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M7.17 6.17A4.001 4.001 0 001 10v4a1 1 0 001 1h4a1 1 0 001-1v-4a1 1 0 00-1-1H4a2 2 0 012-2 1 1 0 001-1V6a1 1 0 00-1-1H5a3 3 0 00-2.83 2.17zM17 6h-4a1 1 0 00-1 1v1a1 1 0 001 1h2a2 2 0 00-2 2v4a1 1 0 001 1h4a1 1 0 001-1v-4a4 4 0 00-4-4 1 1 0 010-2z" />
+            </svg>
+          </div>
+        ) }
+      : (!tweet.media || tweet.media.length === 0)
+        ? { name: 'text', icon: (
+            <div className="w-7 h-7 rounded-lg bg-[#0f1330] flex items-center justify-center text-[#7b6bff]">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M5 4a1 1 0 011-1h8a1 1 0 110 2h-3v10a1 1 0 11-2 0V5H6a1 1 0 01-1-1z" />
+              </svg>
+            </div>
+          ) }
+        : { name: 'tweet', icon: (
+            <div className="w-7 h-7 rounded-lg bg-[#0d1625] flex items-center justify-center text-[#58a8ff]">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M5 4a1 1 0 011-1h8a1 1 0 010 2H6a1 1 0 01-1-1zM4 9a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zm2 4a1 1 0 000 2h8a1 1 0 100-2H6z" />
+              </svg>
+            </div>
+          ) };
+
   return (
-    <div className="bg-gray-900 rounded-lg p-4">
+    <div className="relative bg-gray-900 rounded-lg p-4 max-w-[600px] w-full mx-auto">
+      <div className="absolute top-3 right-3" aria-label={tweetType.name}>
+        {tweetType.icon}
+      </div>
       {/* Retweet indicator */}
       {tweet.retweet && (
         <div className="flex items-center gap-2 text-gray-500 text-sm mb-2">
@@ -172,7 +230,7 @@ function TweetCard({ tweet }: TweetCardProps) {
           </div>
 
           {/* Tweet text */}
-          <p className="text-white mt-1 whitespace-pre-wrap break-words">{tweet.text}</p>
+          <p className="text-white mt-1 whitespace-pre-wrap break-words">{renderTextWithLinks(tweet.text)}</p>
 
           {/* Quoted tweet */}
           {tweet.quotedTweet && (
@@ -181,7 +239,7 @@ function TweetCard({ tweet }: TweetCardProps) {
                 <span className="font-bold text-white text-sm">{tweet.quotedTweet.authorName}</span>
                 <span className="text-gray-500 text-sm">@{tweet.quotedTweet.authorHandle}</span>
               </div>
-              <p className="text-gray-300 text-sm">{tweet.quotedTweet.text}</p>
+              <p className="text-gray-300 text-sm whitespace-pre-wrap break-words">{renderTextWithLinks(tweet.quotedTweet.text)}</p>
             </div>
           )}
 

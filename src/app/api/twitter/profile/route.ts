@@ -7,9 +7,13 @@ interface UserProfile {
   userName: string;
   name: string;
   profilePicture?: string;
+  profileBanner?: string;
   description?: string;
   followersCount: number;
   followingCount: number;
+  location?: string;
+  createdAt?: string;
+  verified?: boolean;
 }
 
 async function fetchUserProfile(apiKey: string, userName: string): Promise<UserProfile | null> {
@@ -35,9 +39,13 @@ async function fetchUserProfile(apiKey: string, userName: string): Promise<UserP
       userName: data.userName || data.screen_name,
       name: data.name,
       profilePicture: data.profilePicture || data.profile_image_url_https,
+      profileBanner: data.profileBanner || data.profile_banner_url || data.profile_banner_url_https,
       description: data.description,
       followersCount: data.followersCount || data.followers_count || 0,
       followingCount: data.followingCount || data.friends_count || 0,
+      location: data.location,
+      createdAt: data.createdAt || data.created_at,
+      verified: data.verified,
     };
   } catch (error) {
     console.error(`Error fetching profile for ${userName}:`, error);
