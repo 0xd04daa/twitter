@@ -49,5 +49,5 @@ export interface UserSettings {
   isPaused: boolean;
 }
 
-export type TabType = 'customize' | 'alerts' | 'socials';
+export type TabType = 'customize' | 'alerts';
 export type ListType = 'myList' | 'topSubscriptions';

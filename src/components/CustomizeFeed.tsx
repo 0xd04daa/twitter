@@ -1,9 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ListType } from '@/types';
 import { useStore } from '@/lib/store';
 import { TOP_SUBSCRIPTIONS } from '@/lib/data';
+
+interface ProfileData {
+  followersCount: number;
+  name?: string;
+  profilePicture?: string;
+}
 
 interface CustomizeFeedProps {
   onAddHandle: (handle: string) => void;
@@ -12,18 +18,62 @@ interface CustomizeFeedProps {
 export function CustomizeFeed({ onAddHandle }: CustomizeFeedProps) {
   const [activeList, setActiveList] = useState<ListType>('myList');
   const [searchQuery, setSearchQuery] = useState('');
+  const [profileData, setProfileData] = useState<Record<string, ProfileData>>({});
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
   const { myList, boosts, removeHandle, removeAllHandles, toggleTrackTweets, toggleTrackProfileUpdates, toggleTrackFollows } = useStore();
+
+  // Fetch profile data for all handles in TOP_SUBSCRIPTIONS
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const handles = TOP_SUBSCRIPTIONS.map((sub) => sub.handle);
+      if (handles.length === 0) return;
+
+      setIsLoadingProfiles(true);
+      try {
+        const response = await fetch('/api/twitter/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ handles }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.profiles) {
+            const newProfileData: Record<string, ProfileData> = {};
+            Object.entries(data.profiles).forEach(([handle, profile]: [string, unknown]) => {
+              const p = profile as { followersCount?: number; name?: string; profilePicture?: string };
+              newProfileData[handle.toLowerCase()] = {
+                followersCount: p.followersCount || 0,
+                name: p.name,
+                profilePicture: p.profilePicture,
+              };
+            });
+            setProfileData(newProfileData);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch profiles:', error);
+      } finally {
+        setIsLoadingProfiles(false);
+      }
+    };
+
+    fetchProfiles();
+  }, []);
 
   const filteredTopSubscriptions = TOP_SUBSCRIPTIONS.filter((sub) =>
     sub.handle.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ).map((sub) => ({
+    ...sub,
+    subscribers: profileData[sub.handle.toLowerCase()]?.followersCount ?? sub.subscribers,
+  }));
 
   const filteredMyList = myList.filter((handle) =>
     handle.handle.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="flex-1 p-6">
+    <div className="flex-1 p-6 overflow-y-auto">
       {/* Info Banner */}
       <div className="flex items-start gap-3 p-4 bg-gray-900 rounded-lg mb-6">
         <div className="w-5 h-5 rounded-full border border-gray-600 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -59,7 +109,9 @@ export function CustomizeFeed({ onAddHandle }: CustomizeFeedProps) {
             Top Subscriptions
           </button>
           {activeList === 'topSubscriptions' && (
-            <span className="text-gray-500 text-sm">Updated recently</span>
+            <span className="text-gray-500 text-sm">
+              {isLoadingProfiles ? 'Loading...' : 'Updated recently'}
+            </span>
           )}
         </div>
 

@@ -32,11 +32,6 @@ function HomePage() {
           <CustomizeFeed onAddHandle={handleAddHandle} />
         )}
         {activeTab === 'alerts' && <TwitterAlerts />}
-        {activeTab === 'socials' && (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            <p>Socials feature coming soon...</p>
-          </div>
-        )}
       </main>
 
       <ImportModal
