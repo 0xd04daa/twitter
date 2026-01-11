@@ -49,7 +49,14 @@ interface TwitterApiTweet {
 }
 
 interface TwitterApiResponse {
-  tweets: TwitterApiTweet[];
+  status: string;
+  code: number;
+  msg: string;
+  data: {
+    pin_tweet: TwitterApiTweet | null;
+    tweets: TwitterApiTweet[];
+  };
+  has_next_page?: boolean;
   next_cursor?: string;
 }
 
@@ -73,12 +80,12 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
 
     const data: TwitterApiResponse = await response.json();
 
-    if (!data.tweets || !Array.isArray(data.tweets)) {
+    if (!data.data?.tweets || !Array.isArray(data.data.tweets)) {
       console.error(`No tweets array in response for ${userName}:`, data);
       return [];
     }
 
-    return data.tweets.map((t) => {
+    return data.data.tweets.map((t) => {
       const media = t.extendedEntities?.media?.map((m) => {
         let url = m.media_url_https || m.url || '';
         let type: 'photo' | 'video' | 'gif' = 'photo';
