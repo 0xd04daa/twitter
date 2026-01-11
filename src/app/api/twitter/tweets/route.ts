@@ -3,6 +3,18 @@ import { Tweet } from '@/types';
 
 const API_BASE = 'https://api.twitterapi.io/twitter';
 
+interface MediaItem {
+  type: string;
+  media_url_https?: string;
+  url?: string;
+  video_info?: {
+    variants?: Array<{
+      url: string;
+      content_type: string;
+    }>;
+  };
+}
+
 interface TwitterApiTweet {
   id: string;
   text: string;
@@ -21,6 +33,19 @@ interface TwitterApiTweet {
       profilePicture?: string;
     };
     createdAt: string;
+    quoted_tweet?: {
+      id: string;
+      text: string;
+      author: {
+        userName: string;
+        name: string;
+        profilePicture?: string;
+      };
+      createdAt: string;
+    };
+    extendedEntities?: {
+      media?: MediaItem[];
+    };
   };
   quoted_tweet?: {
     id: string;
@@ -31,19 +56,12 @@ interface TwitterApiTweet {
       profilePicture?: string;
     };
     createdAt: string;
+    extendedEntities?: {
+      media?: MediaItem[];
+    };
   };
   extendedEntities?: {
-    media?: Array<{
-      type: string;
-      media_url_https?: string;
-      url?: string;
-      video_info?: {
-        variants?: Array<{
-          url: string;
-          content_type: string;
-        }>;
-      };
-    }>;
+    media?: MediaItem[];
   };
   likeCount?: number;
   retweetCount?: number;
@@ -93,25 +111,34 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
       const isRetweet = !!t.retweeted_tweet;
       const sourceTweet = isRetweet ? t.retweeted_tweet! : t;
 
-      const media = t.extendedEntities?.media?.map((m) => {
-        let url = m.media_url_https || m.url || '';
-        let type: 'photo' | 'video' | 'gif' = 'photo';
+      // Helper function to parse media
+      const parseMedia = (mediaItems?: MediaItem[]) => {
+        return mediaItems?.map((m) => {
+          let url = m.media_url_https || m.url || '';
+          let type: 'photo' | 'video' | 'gif' = 'photo';
 
-        if (m.type === 'video' || m.type === 'animated_gif') {
-          type = m.type === 'animated_gif' ? 'gif' : 'video';
-          // Get highest quality video URL
-          const variants = m.video_info?.variants?.filter((v) => v.content_type === 'video/mp4');
-          if (variants && variants.length > 0) {
-            url = variants[variants.length - 1].url;
+          if (m.type === 'video' || m.type === 'animated_gif') {
+            type = m.type === 'animated_gif' ? 'gif' : 'video';
+            // Get highest quality video URL
+            const variants = m.video_info?.variants?.filter((v) => v.content_type === 'video/mp4');
+            if (variants && variants.length > 0) {
+              url = variants[variants.length - 1].url;
+            }
           }
-        }
 
-        return {
-          type,
-          url,
-          previewUrl: m.media_url_https,
-        };
-      });
+          return {
+            type,
+            url,
+            previewUrl: m.media_url_https,
+          };
+        });
+      };
+
+      // Get media from the source tweet (for retweets, get from retweeted_tweet)
+      const media = parseMedia(t.extendedEntities?.media);
+
+      // Get quoted tweet - for retweets, check both main tweet and retweeted_tweet
+      const quotedTweetSource = t.quoted_tweet || (isRetweet ? sourceTweet.quoted_tweet : undefined);
 
       return {
         id: t.id,
@@ -129,14 +156,14 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
               authorAvatar: t.author.profilePicture,
             }
           : undefined,
-        quotedTweet: t.quoted_tweet
+        quotedTweet: quotedTweetSource
           ? {
-              id: t.quoted_tweet.id,
-              text: t.quoted_tweet.text,
-              authorHandle: t.quoted_tweet.author.userName,
-              authorName: t.quoted_tweet.author.name,
-              authorAvatar: t.quoted_tweet.author.profilePicture,
-              createdAt: t.quoted_tweet.createdAt,
+              id: quotedTweetSource.id,
+              text: quotedTweetSource.text,
+              authorHandle: quotedTweetSource.author?.userName || '',
+              authorName: quotedTweetSource.author?.name || '',
+              authorAvatar: quotedTweetSource.author?.profilePicture,
+              createdAt: quotedTweetSource.createdAt,
             }
           : undefined,
         media,
