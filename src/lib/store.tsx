@@ -1,12 +1,13 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { TwitterHandle, Tweet } from '@/types';
+import { TwitterHandle, Tweet, StoredProfile } from '@/types';
 import { isHandleAllowed } from './data';
 
 interface StoreContextType {
   myList: TwitterHandle[];
   tweets: Tweet[];
+  storedProfiles: Record<string, StoredProfile>;
   isPaused: boolean;
   isHoveringFeed: boolean;
   hasUnreadTweets: boolean;
@@ -24,11 +25,13 @@ interface StoreContextType {
   exportList: () => string;
   setTweets: (tweets: Tweet[]) => void;
   addTweets: (tweets: Tweet[]) => void;
+  checkProfileChanges: (profiles: Record<string, { name: string; profilePicture?: string; description?: string }>) => void;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
 
 const STORAGE_KEY = 'twitter-monitor-settings';
+const PROFILES_STORAGE_KEY = 'twitter-monitor-profiles';
 
 interface StoredData {
   myList: TwitterHandle[];
@@ -63,9 +66,37 @@ function saveToStorage(data: StoredData): void {
   }
 }
 
+function loadProfilesFromStorage(): Record<string, StoredProfile> {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  try {
+    const stored = localStorage.getItem(PROFILES_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error('Failed to load profiles from storage:', e);
+  }
+
+  return {};
+}
+
+function saveProfilesToStorage(profiles: Record<string, StoredProfile>): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(profiles));
+  } catch (e) {
+    console.error('Failed to save profiles to storage:', e);
+  }
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [myList, setMyList] = useState<TwitterHandle[]>([]);
   const [tweets, setTweets] = useState<Tweet[]>([]);
+  const [storedProfiles, setStoredProfiles] = useState<Record<string, StoredProfile>>({});
   const [isPaused, setIsPaused] = useState(false);
   const [isHoveringFeed, setIsHoveringFeed] = useState(false);
   const [hasUnreadTweets, setHasUnreadTweets] = useState(false);
@@ -78,6 +109,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setMyList(data.myList);
     setIsPaused(data.isPaused);
     setBoosts(data.boosts);
+    setStoredProfiles(loadProfilesFromStorage());
     setIsLoaded(true);
   }, []);
 
@@ -213,11 +245,103 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const checkProfileChanges = (profiles: Record<string, { name: string; profilePicture?: string; description?: string }>): void => {
+    const profileUpdates: Tweet[] = [];
+    const updatedStoredProfiles = { ...storedProfiles };
+    const now = new Date().toISOString();
+
+    Object.entries(profiles).forEach(([handle, profile]) => {
+      const handleLower = handle.toLowerCase();
+      const stored = storedProfiles[handleLower];
+
+      // Check if user wants profile update tracking
+      const userConfig = myList.find((h) => h.handle.toLowerCase() === handleLower);
+      if (!userConfig?.trackProfileUpdates) return;
+
+      if (stored) {
+        // Check for name change
+        if (stored.name !== profile.name) {
+          profileUpdates.push({
+            id: `profile-name-${handleLower}-${Date.now()}`,
+            tweetType: 'profile_name',
+            text: `@${handle} 的名称已从 "${stored.name}" 更改为 "${profile.name}"`,
+            authorHandle: handle,
+            authorName: profile.name,
+            authorAvatar: profile.profilePicture,
+            createdAt: now,
+            profileUpdate: {
+              type: 'name',
+              oldValue: stored.name,
+              newValue: profile.name,
+            },
+          });
+        }
+
+        // Check for avatar change
+        if (stored.avatar !== profile.profilePicture && profile.profilePicture) {
+          profileUpdates.push({
+            id: `profile-avatar-${handleLower}-${Date.now()}`,
+            tweetType: 'profile_avatar',
+            text: `@${handle} 更换了新头像`,
+            authorHandle: handle,
+            authorName: profile.name,
+            authorAvatar: profile.profilePicture,
+            createdAt: now,
+            profileUpdate: {
+              type: 'avatar',
+              oldValue: stored.avatar,
+              newValue: profile.profilePicture,
+            },
+          });
+        }
+
+        // Check for bio change
+        if (stored.bio !== (profile.description || '')) {
+          profileUpdates.push({
+            id: `profile-bio-${handleLower}-${Date.now()}`,
+            tweetType: 'profile_bio',
+            text: profile.description || '(简介已清空)',
+            authorHandle: handle,
+            authorName: profile.name,
+            authorAvatar: profile.profilePicture,
+            createdAt: now,
+            profileUpdate: {
+              type: 'bio',
+              oldValue: stored.bio,
+              newValue: profile.description || '',
+            },
+          });
+        }
+      }
+
+      // Update stored profile
+      updatedStoredProfiles[handleLower] = {
+        handle,
+        name: profile.name,
+        avatar: profile.profilePicture || '',
+        bio: profile.description || '',
+        lastChecked: now,
+      };
+    });
+
+    // Save updated profiles
+    if (Object.keys(updatedStoredProfiles).length > 0) {
+      setStoredProfiles(updatedStoredProfiles);
+      saveProfilesToStorage(updatedStoredProfiles);
+    }
+
+    // Add profile updates to tweets
+    if (profileUpdates.length > 0) {
+      addTweets(profileUpdates);
+    }
+  };
+
   return (
     <StoreContext.Provider
       value={{
         myList,
         tweets,
+        storedProfiles,
         isPaused,
         isHoveringFeed,
         hasUnreadTweets,
@@ -235,6 +359,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         exportList,
         setTweets,
         addTweets,
+        checkProfileChanges,
       }}
     >
       {children}

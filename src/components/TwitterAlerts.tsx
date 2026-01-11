@@ -41,7 +41,7 @@ function renderTextWithLinks(text: string) {
 }
 
 export function TwitterAlerts() {
-  const { myList, tweets, addTweets, isHoveringFeed, setHoveringFeed } = useStore();
+  const { myList, tweets, addTweets, isHoveringFeed, setHoveringFeed, checkProfileChanges } = useStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
@@ -51,34 +51,56 @@ export function TwitterAlerts() {
     if (myList.length === 0) return;
 
     const handlesToFetch = myList.filter((h) => h.trackTweets).map((h) => h.handle);
-    if (handlesToFetch.length === 0) return;
+    const handlesForProfiles = myList.filter((h) => h.trackProfileUpdates).map((h) => h.handle);
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/twitter/tweets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handles: handlesToFetch }),
-      });
+      // Fetch tweets and profiles in parallel
+      const [tweetsResponse, profilesResponse] = await Promise.all([
+        handlesToFetch.length > 0
+          ? fetch('/api/twitter/tweets', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ handles: handlesToFetch }),
+            })
+          : null,
+        handlesForProfiles.length > 0
+          ? fetch('/api/twitter/profile', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ handles: handlesForProfiles }),
+            })
+          : null,
+      ]);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch tweets');
+      // Process tweets
+      if (tweetsResponse) {
+        const tweetsData = await tweetsResponse.json();
+        if (!tweetsResponse.ok) {
+          throw new Error(tweetsData.error || 'Failed to fetch tweets');
+        }
+        if (tweetsData.tweets && tweetsData.tweets.length > 0) {
+          addTweets(tweetsData.tweets);
+        }
       }
 
-      if (data.tweets && data.tweets.length > 0) {
-        addTweets(data.tweets);
+      // Process profiles for change detection
+      if (profilesResponse) {
+        const profilesData = await profilesResponse.json();
+        if (profilesResponse.ok && profilesData.profiles) {
+          checkProfileChanges(profilesData.profiles);
+        }
       }
+
       setHasFetchedOnce(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch tweets');
     } finally {
       setIsLoading(false);
     }
-  }, [myList, addTweets]);
+  }, [myList, addTweets, checkProfileChanges]);
 
   // Initial fetch - always runs once
   useEffect(() => {
