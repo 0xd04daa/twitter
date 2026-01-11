@@ -43,12 +43,13 @@ export function TwitterAlerts() {
         body: JSON.stringify({ handles: handlesToFetch }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to fetch tweets');
+        throw new Error(data.error || 'Failed to fetch tweets');
       }
 
-      const data = await response.json();
-      if (data.tweets) {
+      if (data.tweets && data.tweets.length > 0) {
         addTweets(data.tweets);
       }
       setHasFetchedOnce(true);

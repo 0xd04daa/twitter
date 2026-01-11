@@ -66,11 +66,17 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
     });
 
     if (!response.ok) {
-      console.error(`Failed to fetch tweets for ${userName}: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`Failed to fetch tweets for ${userName}: ${response.status} - ${errorText}`);
       return [];
     }
 
     const data: TwitterApiResponse = await response.json();
+
+    if (!data.tweets || !Array.isArray(data.tweets)) {
+      console.error(`No tweets array in response for ${userName}:`, data);
+      return [];
+    }
 
     return data.tweets.map((t) => {
       const media = t.extendedEntities?.media?.map((m) => {
