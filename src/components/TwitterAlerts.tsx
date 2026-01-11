@@ -20,10 +20,9 @@ function formatTimeAgo(dateString: string): string {
 }
 
 export function TwitterAlerts() {
-  const { myList, tweets, addTweets } = useStore();
+  const { myList, tweets, addTweets, isHoveringFeed, setHoveringFeed } = useStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isHovering, setIsHovering] = useState(false);
   const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -69,7 +68,7 @@ export function TwitterAlerts() {
 
   // Polling - only when not hovering
   useEffect(() => {
-    if (isHovering) {
+    if (isHoveringFeed) {
       // Clear interval when hovering
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -85,24 +84,14 @@ export function TwitterAlerts() {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isHovering, fetchTweets]);
+  }, [isHoveringFeed, fetchTweets]);
 
   return (
     <div
       className="flex-1 p-6 overflow-y-auto relative"
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
+      onMouseEnter={() => setHoveringFeed(true)}
+      onMouseLeave={() => setHoveringFeed(false)}
     >
-      {/* Pause overlay indicator */}
-      {isHovering && (
-        <div className="sticky top-0 z-10 flex items-center justify-center gap-2 p-2 bg-yellow-900/80 backdrop-blur-sm border border-yellow-600/30 rounded-lg mb-4">
-          <svg className="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          <span className="text-yellow-500 text-sm">Auto-refresh paused (move mouse away to resume)</span>
-        </div>
-      )}
-
       {error && (
         <div className="flex items-center gap-2 p-4 bg-red-900/20 border border-red-600/30 rounded-lg mb-4">
           <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">

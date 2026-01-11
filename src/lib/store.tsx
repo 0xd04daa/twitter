@@ -8,6 +8,7 @@ interface StoreContextType {
   myList: TwitterHandle[];
   tweets: Tweet[];
   isPaused: boolean;
+  isHoveringFeed: boolean;
   boosts: number;
   addHandle: (handle: string) => boolean;
   removeHandle: (handle: string) => void;
@@ -16,6 +17,7 @@ interface StoreContextType {
   toggleTrackProfileUpdates: (handle: string) => void;
   toggleTrackFollows: (handle: string) => void;
   togglePause: () => void;
+  setHoveringFeed: (isHovering: boolean) => void;
   importList: (data: string) => boolean;
   exportList: () => string;
   setTweets: (tweets: Tweet[]) => void;
@@ -63,6 +65,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [myList, setMyList] = useState<TwitterHandle[]>([]);
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [isPaused, setIsPaused] = useState(false);
+  const [isHoveringFeed, setIsHoveringFeed] = useState(false);
   const [boosts, setBoosts] = useState(652);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -148,6 +151,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setIsPaused((prev) => !prev);
   };
 
+  const setHoveringFeed = (hovering: boolean): void => {
+    setIsHoveringFeed(hovering);
+  };
+
   const importList = (data: string): boolean => {
     try {
       const parsed = JSON.parse(data);
@@ -202,6 +209,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         myList,
         tweets,
         isPaused,
+        isHoveringFeed,
         boosts,
         addHandle,
         removeHandle,
@@ -210,6 +218,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         toggleTrackProfileUpdates,
         toggleTrackFollows,
         togglePause,
+        setHoveringFeed,
         importList,
         exportList,
         setTweets,
