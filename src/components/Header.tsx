@@ -12,13 +12,20 @@ interface HeaderProps {
 }
 
 export function Header({ activeTab, onTabChange, onImport, onExport, onAddHandle }: HeaderProps) {
-  const { isHoveringFeed } = useStore();
+  const { isHoveringFeed, hasUnreadTweets, markTweetsAsRead } = useStore();
+
+  const handleTabChange = (tab: TabType) => {
+    if (tab === 'alerts') {
+      markTweetsAsRead();
+    }
+    onTabChange(tab);
+  };
 
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
       <nav className="flex items-center gap-6">
         <button
-          onClick={() => onTabChange('customize')}
+          onClick={() => handleTabChange('customize')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             activeTab === 'customize'
               ? 'bg-gray-800 text-white'
@@ -28,7 +35,7 @@ export function Header({ activeTab, onTabChange, onImport, onExport, onAddHandle
           Customize Feed
         </button>
         <button
-          onClick={() => onTabChange('alerts')}
+          onClick={() => handleTabChange('alerts')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors relative ${
             activeTab === 'alerts'
               ? 'bg-gray-800 text-white'
@@ -36,7 +43,9 @@ export function Header({ activeTab, onTabChange, onImport, onExport, onAddHandle
           }`}
         >
           Twitter Alerts
-          <span className="absolute -top-1 -right-1 w-2 h-2 bg-pink-500 rounded-full"></span>
+          {hasUnreadTweets && activeTab !== 'alerts' && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 bg-pink-500 rounded-full"></span>
+          )}
         </button>
       </nav>
 

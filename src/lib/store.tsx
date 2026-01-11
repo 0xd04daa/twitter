@@ -9,6 +9,7 @@ interface StoreContextType {
   tweets: Tweet[];
   isPaused: boolean;
   isHoveringFeed: boolean;
+  hasUnreadTweets: boolean;
   boosts: number;
   addHandle: (handle: string) => boolean;
   removeHandle: (handle: string) => void;
@@ -18,6 +19,7 @@ interface StoreContextType {
   toggleTrackFollows: (handle: string) => void;
   togglePause: () => void;
   setHoveringFeed: (isHovering: boolean) => void;
+  markTweetsAsRead: () => void;
   importList: (data: string) => boolean;
   exportList: () => string;
   setTweets: (tweets: Tweet[]) => void;
@@ -66,6 +68,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [isHoveringFeed, setIsHoveringFeed] = useState(false);
+  const [hasUnreadTweets, setHasUnreadTweets] = useState(false);
   const [boosts, setBoosts] = useState(652);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -155,6 +158,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setIsHoveringFeed(hovering);
   };
 
+  const markTweetsAsRead = (): void => {
+    setHasUnreadTweets(false);
+  };
+
   const importList = (data: string): boolean => {
     try {
       const parsed = JSON.parse(data);
@@ -199,6 +206,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setTweets((prev) => {
       const existingIds = new Set(prev.map((t) => t.id));
       const uniqueNewTweets = newTweets.filter((t) => !existingIds.has(t.id));
+      if (uniqueNewTweets.length > 0) {
+        setHasUnreadTweets(true);
+      }
       return [...uniqueNewTweets, ...prev].slice(0, 100); // Keep last 100 tweets
     });
   };
@@ -210,6 +220,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         tweets,
         isPaused,
         isHoveringFeed,
+        hasUnreadTweets,
         boosts,
         addHandle,
         removeHandle,
@@ -219,6 +230,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         toggleTrackFollows,
         togglePause,
         setHoveringFeed,
+        markTweetsAsRead,
         importList,
         exportList,
         setTweets,

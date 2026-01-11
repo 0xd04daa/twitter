@@ -27,7 +27,7 @@ function HomePage() {
         onAddHandle={() => setShowAddHandleModal(true)}
       />
 
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden">
         {activeTab === 'customize' && (
           <CustomizeFeed onAddHandle={handleAddHandle} />
         )}
