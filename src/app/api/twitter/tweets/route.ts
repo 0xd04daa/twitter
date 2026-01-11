@@ -12,14 +12,17 @@ interface TwitterApiTweet {
     profilePicture?: string;
   };
   createdAt: string;
-  retweetedTweet?: {
+  retweeted_tweet?: {
+    id: string;
+    text: string;
     author: {
       userName: string;
       name: string;
       profilePicture?: string;
     };
+    createdAt: string;
   };
-  quotedTweet?: {
+  quoted_tweet?: {
     id: string;
     text: string;
     author: {
@@ -113,21 +116,21 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
         authorName: t.author.name,
         authorAvatar: t.author.profilePicture,
         createdAt: t.createdAt,
-        retweet: t.retweetedTweet
+        retweet: t.retweeted_tweet
           ? {
-              authorHandle: t.retweetedTweet.author.userName,
-              authorName: t.retweetedTweet.author.name,
-              authorAvatar: t.retweetedTweet.author.profilePicture,
+              authorHandle: t.retweeted_tweet.author.userName,
+              authorName: t.retweeted_tweet.author.name,
+              authorAvatar: t.retweeted_tweet.author.profilePicture,
             }
           : undefined,
-        quotedTweet: t.quotedTweet
+        quotedTweet: t.quoted_tweet
           ? {
-              id: t.quotedTweet.id,
-              text: t.quotedTweet.text,
-              authorHandle: t.quotedTweet.author.userName,
-              authorName: t.quotedTweet.author.name,
-              authorAvatar: t.quotedTweet.author.profilePicture,
-              createdAt: t.quotedTweet.createdAt,
+              id: t.quoted_tweet.id,
+              text: t.quoted_tweet.text,
+              authorHandle: t.quoted_tweet.author.userName,
+              authorName: t.quoted_tweet.author.name,
+              authorAvatar: t.quoted_tweet.author.profilePicture,
+              createdAt: t.quoted_tweet.createdAt,
             }
           : undefined,
         media,
