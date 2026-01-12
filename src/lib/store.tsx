@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { TwitterHandle, Tweet, StoredProfile } from '@/types';
 import { isHandleAllowed } from './data';
 
@@ -234,7 +234,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }, null, 2);
   };
 
-  const addTweets = (newTweets: Tweet[]): void => {
+  const addTweets = useCallback((newTweets: Tweet[]): void => {
     setTweets((prev) => {
       const existingIds = new Set(prev.map((t) => t.id));
       const uniqueNewTweets = newTweets.filter((t) => !existingIds.has(t.id));
@@ -243,98 +243,99 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       return [...uniqueNewTweets, ...prev].slice(0, 100); // Keep last 100 tweets
     });
-  };
+  }, []);
 
-  const checkProfileChanges = (profiles: Record<string, { name: string; profilePicture?: string; description?: string }>): void => {
-    const profileUpdates: Tweet[] = [];
-    const updatedStoredProfiles = { ...storedProfiles };
-    const now = new Date().toISOString();
+  const checkProfileChanges = useCallback((profiles: Record<string, { name: string; profilePicture?: string; description?: string }>): void => {
+    setStoredProfiles((currentStoredProfiles) => {
+      const profileUpdates: Tweet[] = [];
+      const updatedStoredProfiles = { ...currentStoredProfiles };
+      const now = new Date().toISOString();
 
-    Object.entries(profiles).forEach(([handle, profile]) => {
-      const handleLower = handle.toLowerCase();
-      const stored = storedProfiles[handleLower];
+      Object.entries(profiles).forEach(([handle, profile]) => {
+        const handleLower = handle.toLowerCase();
+        const stored = currentStoredProfiles[handleLower];
 
-      // Check if user wants profile update tracking
-      const userConfig = myList.find((h) => h.handle.toLowerCase() === handleLower);
-      if (!userConfig?.trackProfileUpdates) return;
+        // Check if user wants profile update tracking
+        const userConfig = myList.find((h) => h.handle.toLowerCase() === handleLower);
+        if (!userConfig?.trackProfileUpdates) return;
 
-      if (stored) {
-        // Check for name change
-        if (stored.name !== profile.name) {
-          profileUpdates.push({
-            id: `profile-name-${handleLower}-${Date.now()}`,
-            tweetType: 'profile_name',
-            text: `@${handle} 的名称已从 "${stored.name}" 更改为 "${profile.name}"`,
-            authorHandle: handle,
-            authorName: profile.name,
-            authorAvatar: profile.profilePicture,
-            createdAt: now,
-            profileUpdate: {
-              type: 'name',
-              oldValue: stored.name,
-              newValue: profile.name,
-            },
-          });
+        if (stored) {
+          // Check for name change
+          if (stored.name !== profile.name) {
+            profileUpdates.push({
+              id: `profile-name-${handleLower}-${Date.now()}`,
+              tweetType: 'profile_name',
+              text: `@${handle} 的名称已从 "${stored.name}" 更改为 "${profile.name}"`,
+              authorHandle: handle,
+              authorName: profile.name,
+              authorAvatar: profile.profilePicture,
+              createdAt: now,
+              profileUpdate: {
+                type: 'name',
+                oldValue: stored.name,
+                newValue: profile.name,
+              },
+            });
+          }
+
+          // Check for avatar change
+          if (stored.avatar !== profile.profilePicture && profile.profilePicture) {
+            profileUpdates.push({
+              id: `profile-avatar-${handleLower}-${Date.now()}`,
+              tweetType: 'profile_avatar',
+              text: `@${handle} 更换了新头像`,
+              authorHandle: handle,
+              authorName: profile.name,
+              authorAvatar: profile.profilePicture,
+              createdAt: now,
+              profileUpdate: {
+                type: 'avatar',
+                oldValue: stored.avatar,
+                newValue: profile.profilePicture,
+              },
+            });
+          }
+
+          // Check for bio change
+          if (stored.bio !== (profile.description || '')) {
+            profileUpdates.push({
+              id: `profile-bio-${handleLower}-${Date.now()}`,
+              tweetType: 'profile_bio',
+              text: profile.description || '(简介已清空)',
+              authorHandle: handle,
+              authorName: profile.name,
+              authorAvatar: profile.profilePicture,
+              createdAt: now,
+              profileUpdate: {
+                type: 'bio',
+                oldValue: stored.bio,
+                newValue: profile.description || '',
+              },
+            });
+          }
         }
 
-        // Check for avatar change
-        if (stored.avatar !== profile.profilePicture && profile.profilePicture) {
-          profileUpdates.push({
-            id: `profile-avatar-${handleLower}-${Date.now()}`,
-            tweetType: 'profile_avatar',
-            text: `@${handle} 更换了新头像`,
-            authorHandle: handle,
-            authorName: profile.name,
-            authorAvatar: profile.profilePicture,
-            createdAt: now,
-            profileUpdate: {
-              type: 'avatar',
-              oldValue: stored.avatar,
-              newValue: profile.profilePicture,
-            },
-          });
-        }
+        // Update stored profile
+        updatedStoredProfiles[handleLower] = {
+          handle,
+          name: profile.name,
+          avatar: profile.profilePicture || '',
+          bio: profile.description || '',
+          lastChecked: now,
+        };
+      });
 
-        // Check for bio change
-        if (stored.bio !== (profile.description || '')) {
-          profileUpdates.push({
-            id: `profile-bio-${handleLower}-${Date.now()}`,
-            tweetType: 'profile_bio',
-            text: profile.description || '(简介已清空)',
-            authorHandle: handle,
-            authorName: profile.name,
-            authorAvatar: profile.profilePicture,
-            createdAt: now,
-            profileUpdate: {
-              type: 'bio',
-              oldValue: stored.bio,
-              newValue: profile.description || '',
-            },
-          });
-        }
+      // Save updated profiles
+      saveProfilesToStorage(updatedStoredProfiles);
+
+      // Add profile updates to tweets
+      if (profileUpdates.length > 0) {
+        addTweets(profileUpdates);
       }
 
-      // Update stored profile
-      updatedStoredProfiles[handleLower] = {
-        handle,
-        name: profile.name,
-        avatar: profile.profilePicture || '',
-        bio: profile.description || '',
-        lastChecked: now,
-      };
+      return updatedStoredProfiles;
     });
-
-    // Save updated profiles
-    if (Object.keys(updatedStoredProfiles).length > 0) {
-      setStoredProfiles(updatedStoredProfiles);
-      saveProfilesToStorage(updatedStoredProfiles);
-    }
-
-    // Add profile updates to tweets
-    if (profileUpdates.length > 0) {
-      addTweets(profileUpdates);
-    }
-  };
+  }, [myList, addTweets]);
 
   return (
     <StoreContext.Provider

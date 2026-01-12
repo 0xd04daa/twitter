@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { Tweet } from '@/types';
 import { useStore } from '@/lib/store';
 
@@ -47,12 +47,25 @@ export function TwitterAlerts() {
   const [isConnected, setIsConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const addTweetsRef = useRef(addTweets);
+
+  // Keep addTweets ref updated
+  useEffect(() => {
+    addTweetsRef.current = addTweets;
+  }, [addTweets]);
+
+  // Create stable handles string for dependency
+  const handlesKey = useMemo(() => {
+    return myList
+      .filter((h) => h.trackTweets)
+      .map((h) => h.handle.toLowerCase())
+      .sort()
+      .join(',');
+  }, [myList]);
 
   // SSE connection for real-time tweets
   useEffect(() => {
-    const handlesToFetch = myList.filter((h) => h.trackTweets).map((h) => h.handle);
-
-    if (handlesToFetch.length === 0) {
+    if (!handlesKey) {
       // Close existing connection if no handles
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -71,8 +84,7 @@ export function TwitterAlerts() {
     setError(null);
 
     // Create SSE connection
-    const handlesParam = handlesToFetch.join(',');
-    const eventSource = new EventSource(`/api/twitter/stream?handles=${encodeURIComponent(handlesParam)}`);
+    const eventSource = new EventSource(`/api/twitter/stream?handles=${encodeURIComponent(handlesKey)}`);
     eventSourceRef.current = eventSource;
 
     eventSource.onopen = () => {
@@ -90,8 +102,8 @@ export function TwitterAlerts() {
           setIsConnected(true);
           setIsLoading(false);
         } else if (data.type === 'tweets' && data.tweets) {
-          // Add new tweets
-          addTweets(data.tweets);
+          // Add new tweets using ref to avoid dependency issues
+          addTweetsRef.current(data.tweets);
         } else if (data.type === 'error') {
           setError(data.message || 'Stream error');
         }
@@ -101,8 +113,8 @@ export function TwitterAlerts() {
       }
     };
 
-    eventSource.onerror = (err) => {
-      console.error('SSE error:', err);
+    eventSource.onerror = () => {
+      console.error('SSE connection error');
       setIsConnected(false);
       setError('Connection lost. Reconnecting...');
 
@@ -115,7 +127,6 @@ export function TwitterAlerts() {
         clearTimeout(reconnectTimeoutRef.current);
       }
       reconnectTimeoutRef.current = setTimeout(() => {
-        // This will trigger the useEffect again due to dependency change
         setError(null);
       }, 3000);
     };
@@ -127,7 +138,7 @@ export function TwitterAlerts() {
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [myList, addTweets]);
+  }, [handlesKey]);
 
   // Fetch profiles for change detection (separate from SSE)
   useEffect(() => {
