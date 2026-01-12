@@ -25,9 +25,23 @@ export async function GET() {
 
     const data = await response.json();
 
-    // Find tweets with retweeted_tweet to inspect structure
+    // Find tweets with retweeted_tweet or quoted_tweet to inspect structure
     const tweets = data.data?.tweets || [];
     const retweetExample = tweets.find((t: Record<string, unknown>) => t.retweeted_tweet);
+    const quoteExample = tweets.find((t: Record<string, unknown>) => t.quoted_tweet);
+
+    // Show full structure of all tweets for debugging
+    const tweetsWithDetails = tweets.slice(0, 10).map((t: Record<string, unknown>) => ({
+      id: t.id,
+      text: t.text,
+      author: t.author,
+      hasRetweetedTweet: !!t.retweeted_tweet,
+      hasQuotedTweet: !!t.quoted_tweet,
+      retweeted_tweet: t.retweeted_tweet || null,
+      quoted_tweet: t.quoted_tweet || null,
+      isReply: t.isReply,
+      inReplyToId: t.inReplyToId,
+    }));
 
     return NextResponse.json({
       status: response.ok ? 'success' : 'api_error',
@@ -35,17 +49,12 @@ export async function GET() {
       keyPrefix: apiKey.substring(0, 8) + '...',
       apiStatus: response.status,
       tweetCount: tweets.length,
-      // Show first tweet full structure
-      firstTweet: tweets[0] || null,
+      // Show detailed tweet info
+      tweetsWithDetails,
       // Show retweet example if found
       retweetExample: retweetExample || 'No retweets found',
-      // Show all tweet types
-      tweetTypes: tweets.map((t: Record<string, unknown>) => ({
-        id: t.id,
-        hasRetweetedTweet: !!t.retweeted_tweet,
-        hasQuotedTweet: !!t.quoted_tweet,
-        text: typeof t.text === 'string' ? t.text.substring(0, 50) : '',
-      })),
+      // Show quote example if found
+      quoteExample: quoteExample || 'No quotes found',
     });
   } catch (error) {
     return NextResponse.json({
