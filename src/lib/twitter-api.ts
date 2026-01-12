@@ -95,22 +95,27 @@ export class TwitterAPI {
 
         return {
           id: t.id,
-          text: t.text,
+          text: isRetweet ? '' : t.text,
           tweetType,
           authorHandle: t.author.userName,
           authorName: t.author.name,
           authorAvatar: t.author.profilePicture,
           createdAt: t.createdAt,
-          retweetedBy: t.retweetedTweet ? {
+          // For retweets: store original tweet as nested content
+          retweetedTweet: t.retweetedTweet ? {
+            id: t.id,
+            text: t.text,
+            tweetType: 'tweet' as TweetType,
             authorHandle: t.retweetedTweet.author.userName,
             authorName: t.retweetedTweet.author.name,
             authorAvatar: t.retweetedTweet.author.profilePicture,
+            createdAt: t.createdAt,
           } : undefined,
           inReplyTo: isReply && t.inReplyToId ? {
             id: t.inReplyToId,
             authorHandle: t.inReplyToUsername || '',
           } : undefined,
-          quotedTweet: t.quotedTweet ? {
+          quotedTweet: !isRetweet && t.quotedTweet ? {
             id: t.quotedTweet.id,
             text: t.quotedTweet.text,
             tweetType: 'tweet' as TweetType,

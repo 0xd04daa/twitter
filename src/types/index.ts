@@ -21,12 +21,8 @@ export interface Tweet {
   createdAt: string;
   // Tweet type for categorization
   tweetType: TweetType;
-  // For retweets: who retweeted this tweet
-  retweetedBy?: {
-    authorHandle: string;
-    authorName: string;
-    authorAvatar?: string;
-  };
+  // For retweets: the original tweet that was retweeted
+  retweetedTweet?: Tweet;
   // For replies: what tweet this is replying to
   inReplyTo?: {
     id: string;

@@ -111,11 +111,9 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
     }
 
     return data.data.tweets.map((t) => {
-      // For retweets, use the original tweet's content
       const isRetweet = !!t.retweeted_tweet;
       const isQuote = !!t.quoted_tweet;
       const isReply = !!t.isReply || !!t.inReplyToId;
-      const sourceTweet = isRetweet ? t.retweeted_tweet! : t;
 
       // Determine tweet type (priority: retweet > quote > reply > tweet)
       let tweetType: TweetType = 'tweet';
@@ -150,27 +148,42 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
         });
       };
 
-      // Get media from the source tweet (for retweets, get from retweeted_tweet)
-      const media = parseMedia(t.extendedEntities?.media);
-
-      // Get quoted tweet - for retweets, check both main tweet and retweeted_tweet
-      const quotedTweetSource = t.quoted_tweet || (isRetweet ? sourceTweet.quoted_tweet : undefined);
+      // For retweets: monitored user is the main author, original tweet is nested
+      // For quotes/replies/tweets: monitored user is the author
+      const retweetedTweetData = t.retweeted_tweet;
 
       return {
         id: t.id,
         tweetType,
-        // For retweets, show the original tweet's content
-        text: sourceTweet.text,
-        authorHandle: sourceTweet.author.userName,
-        authorName: sourceTweet.author.name,
-        authorAvatar: sourceTweet.author.profilePicture,
-        createdAt: sourceTweet.createdAt,
-        // For retweets, store who retweeted it
-        retweetedBy: isRetweet
+        // Main author is always the monitored user (t.author)
+        text: isRetweet ? '' : t.text,
+        authorHandle: t.author.userName,
+        authorName: t.author.name,
+        authorAvatar: t.author.profilePicture,
+        createdAt: t.createdAt,
+        // For retweets: store the original tweet as nested content
+        retweetedTweet: isRetweet && retweetedTweetData
           ? {
-              authorHandle: t.author.userName,
-              authorName: t.author.name,
-              authorAvatar: t.author.profilePicture,
+              id: retweetedTweetData.id,
+              text: retweetedTweetData.text,
+              tweetType: 'tweet' as TweetType,
+              authorHandle: retweetedTweetData.author.userName,
+              authorName: retweetedTweetData.author.name,
+              authorAvatar: retweetedTweetData.author.profilePicture,
+              createdAt: retweetedTweetData.createdAt,
+              media: parseMedia(retweetedTweetData.extendedEntities?.media),
+              // Include quoted tweet from the retweeted tweet if exists
+              quotedTweet: retweetedTweetData.quoted_tweet
+                ? {
+                    id: retweetedTweetData.quoted_tweet.id,
+                    text: retweetedTweetData.quoted_tweet.text,
+                    tweetType: 'tweet' as TweetType,
+                    authorHandle: retweetedTweetData.quoted_tweet.author?.userName || '',
+                    authorName: retweetedTweetData.quoted_tweet.author?.name || '',
+                    authorAvatar: retweetedTweetData.quoted_tweet.author?.profilePicture,
+                    createdAt: retweetedTweetData.quoted_tweet.createdAt,
+                  }
+                : undefined,
             }
           : undefined,
         // For replies, store what tweet this is replying to
@@ -180,18 +193,20 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
               authorHandle: t.inReplyToUsername || '',
             }
           : undefined,
-        quotedTweet: quotedTweetSource
+        // Quoted tweet for quote tweets (not retweets)
+        quotedTweet: !isRetweet && t.quoted_tweet
           ? {
-              id: quotedTweetSource.id,
-              text: quotedTweetSource.text,
+              id: t.quoted_tweet.id,
+              text: t.quoted_tweet.text,
               tweetType: 'tweet' as TweetType,
-              authorHandle: quotedTweetSource.author?.userName || '',
-              authorName: quotedTweetSource.author?.name || '',
-              authorAvatar: quotedTweetSource.author?.profilePicture,
-              createdAt: quotedTweetSource.createdAt,
+              authorHandle: t.quoted_tweet.author?.userName || '',
+              authorName: t.quoted_tweet.author?.name || '',
+              authorAvatar: t.quoted_tweet.author?.profilePicture,
+              createdAt: t.quoted_tweet.createdAt,
+              media: parseMedia(t.quoted_tweet.extendedEntities?.media),
             }
           : undefined,
-        media,
+        media: parseMedia(t.extendedEntities?.media),
         metrics: {
           likes: t.likeCount || 0,
           retweets: t.retweetCount || 0,

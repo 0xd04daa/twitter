@@ -166,9 +166,16 @@ export function TwitterAlerts() {
         )}
 
         <div className="space-y-4">
-          {tweets.map((tweet) => (
-            <TweetCard key={tweet.id} tweet={tweet} />
-          ))}
+          {tweets
+            .filter((tweet) => {
+              // Only show tweets from users in myList
+              const monitoredHandles = myList.map((h) => h.handle.toLowerCase());
+              // All tweets now have the monitored user as the main author
+              return monitoredHandles.includes(tweet.authorHandle.toLowerCase());
+            })
+            .map((tweet) => (
+              <TweetCard key={tweet.id} tweet={tweet} />
+            ))}
         </div>
       </div>
     </div>
@@ -285,12 +292,12 @@ function TweetCard({ tweet }: TweetCardProps) {
         {typeConfig.icon}
       </div>
       {/* Retweet indicator */}
-      {tweet.retweetedBy && (
+      {tweet.tweetType === 'retweet' && (
         <div className="flex items-center gap-2 text-gray-500 text-sm mb-2">
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
             <path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z" />
           </svg>
-          <span>{tweet.retweetedBy.authorName} 转推了</span>
+          <span>转推了</span>
         </div>
       )}
       {/* Reply indicator */}
@@ -340,17 +347,104 @@ function TweetCard({ tweet }: TweetCardProps) {
             <span className="text-gray-500">{formatTimeAgo(tweet.createdAt)}</span>
           </div>
 
-          {/* Tweet text */}
-          <p className="text-white mt-1 whitespace-pre-wrap break-words">{renderTextWithLinks(tweet.text)}</p>
+          {/* Tweet text (for non-retweets) */}
+          {tweet.text && (
+            <p className="text-white mt-1 whitespace-pre-wrap break-words">{renderTextWithLinks(tweet.text)}</p>
+          )}
+
+          {/* Retweeted tweet (nested) */}
+          {tweet.retweetedTweet && (
+            <div className="mt-3 border border-gray-700 rounded-xl p-3">
+              <div className="flex items-start gap-2">
+                <div className="w-6 h-6 rounded-full bg-gray-700 flex-shrink-0">
+                  {tweet.retweetedTweet.authorAvatar ? (
+                    <img
+                      src={tweet.retweetedTweet.authorAvatar}
+                      alt={tweet.retweetedTweet.authorName}
+                      className="w-6 h-6 rounded-full"
+                    />
+                  ) : (
+                    <span className="text-gray-400 text-xs font-bold flex items-center justify-center h-full">
+                      {tweet.retweetedTweet.authorName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-white text-sm">{tweet.retweetedTweet.authorName}</span>
+                    <span className="text-gray-500 text-sm">@{tweet.retweetedTweet.authorHandle}</span>
+                  </div>
+                  <p className="text-gray-300 text-sm whitespace-pre-wrap break-words mt-1">{renderTextWithLinks(tweet.retweetedTweet.text)}</p>
+                  {/* Media in retweeted tweet */}
+                  {tweet.retweetedTweet.media && tweet.retweetedTweet.media.length > 0 && (
+                    <div className="mt-2 grid gap-2 grid-cols-1">
+                      {tweet.retweetedTweet.media.map((m, i) => (
+                        <div key={i} className="rounded-lg overflow-hidden">
+                          {m.type === 'photo' && (
+                            <img src={m.url} alt="Tweet media" className="w-full h-auto max-h-64 object-cover" />
+                          )}
+                          {m.type === 'video' && (
+                            <video src={m.url} poster={m.previewUrl} controls className="w-full h-auto max-h-64" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Quoted tweet within retweeted tweet */}
+                  {tweet.retweetedTweet.quotedTweet && (
+                    <div className="mt-2 border border-gray-600 rounded-lg p-2">
+                      <div className="flex items-center gap-1">
+                        <span className="font-bold text-white text-xs">{tweet.retweetedTweet.quotedTweet.authorName}</span>
+                        <span className="text-gray-500 text-xs">@{tweet.retweetedTweet.quotedTweet.authorHandle}</span>
+                      </div>
+                      <p className="text-gray-400 text-xs whitespace-pre-wrap break-words mt-1">{renderTextWithLinks(tweet.retweetedTweet.quotedTweet.text)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Quoted tweet */}
           {tweet.quotedTweet && (
-            <div className="mt-3 border border-gray-700 rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-bold text-white text-sm">{tweet.quotedTweet.authorName}</span>
-                <span className="text-gray-500 text-sm">@{tweet.quotedTweet.authorHandle}</span>
+            <div className="mt-3 border border-gray-700 rounded-xl p-3">
+              <div className="flex items-start gap-2">
+                <div className="w-6 h-6 rounded-full bg-gray-700 flex-shrink-0">
+                  {tweet.quotedTweet.authorAvatar ? (
+                    <img
+                      src={tweet.quotedTweet.authorAvatar}
+                      alt={tweet.quotedTweet.authorName}
+                      className="w-6 h-6 rounded-full"
+                    />
+                  ) : (
+                    <span className="text-gray-400 text-xs font-bold flex items-center justify-center h-full">
+                      {tweet.quotedTweet.authorName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-white text-sm">{tweet.quotedTweet.authorName}</span>
+                    <span className="text-gray-500 text-sm">@{tweet.quotedTweet.authorHandle}</span>
+                  </div>
+                  <p className="text-gray-300 text-sm whitespace-pre-wrap break-words mt-1">{renderTextWithLinks(tweet.quotedTweet.text)}</p>
+                  {/* Media in quoted tweet */}
+                  {tweet.quotedTweet.media && tweet.quotedTweet.media.length > 0 && (
+                    <div className="mt-2 grid gap-2 grid-cols-1">
+                      {tweet.quotedTweet.media.map((m, i) => (
+                        <div key={i} className="rounded-lg overflow-hidden">
+                          {m.type === 'photo' && (
+                            <img src={m.url} alt="Tweet media" className="w-full h-auto max-h-64 object-cover" />
+                          )}
+                          {m.type === 'video' && (
+                            <video src={m.url} poster={m.previewUrl} controls className="w-full h-auto max-h-64" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <p className="text-gray-300 text-sm whitespace-pre-wrap break-words">{renderTextWithLinks(tweet.quotedTweet.text)}</p>
             </div>
           )}
 
