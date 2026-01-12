@@ -200,25 +200,6 @@ export function TwitterAlerts() {
           </div>
         )}
 
-        {isLoading && tweets.length === 0 && (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          </div>
-        )}
-
-        {!isLoading && tweets.length === 0 && myList.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <p>No handles added yet.</p>
-            <p className="text-sm mt-2">Add handles from the Customize Feed tab to start receiving alerts.</p>
-          </div>
-        )}
-
-        {!isLoading && tweets.length === 0 && myList.length > 0 && isConnected && (
-          <div className="text-center py-12 text-gray-500">
-            <p>Waiting for new tweets...</p>
-            <p className="text-sm mt-2">Tweets will appear here in real-time.</p>
-          </div>
-        )}
 
         <div className="space-y-4">
           {tweets
