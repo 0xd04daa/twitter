@@ -44,90 +44,124 @@ export function TwitterAlerts() {
   const { myList, tweets, addTweets, isHoveringFeed, setHoveringFeed, checkProfileChanges } = useStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchTweets = useCallback(async () => {
-    if (myList.length === 0) return;
-
+  // SSE connection for real-time tweets
+  useEffect(() => {
     const handlesToFetch = myList.filter((h) => h.trackTweets).map((h) => h.handle);
-    const handlesForProfiles = myList.filter((h) => h.trackProfileUpdates).map((h) => h.handle);
+
+    if (handlesToFetch.length === 0) {
+      // Close existing connection if no handles
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+        setIsConnected(false);
+      }
+      return;
+    }
+
+    // Close existing connection before creating new one
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
 
     setIsLoading(true);
     setError(null);
 
-    try {
-      // Fetch tweets and profiles in parallel
-      const [tweetsResponse, profilesResponse] = await Promise.all([
-        handlesToFetch.length > 0
-          ? fetch('/api/twitter/tweets', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ handles: handlesToFetch }),
-            })
-          : null,
-        handlesForProfiles.length > 0
-          ? fetch('/api/twitter/profile', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ handles: handlesForProfiles }),
-            })
-          : null,
-      ]);
+    // Create SSE connection
+    const handlesParam = handlesToFetch.join(',');
+    const eventSource = new EventSource(`/api/twitter/stream?handles=${encodeURIComponent(handlesParam)}`);
+    eventSourceRef.current = eventSource;
 
-      // Process tweets
-      if (tweetsResponse) {
-        const tweetsData = await tweetsResponse.json();
-        if (!tweetsResponse.ok) {
-          throw new Error(tweetsData.error || 'Failed to fetch tweets');
-        }
-        if (tweetsData.tweets && tweetsData.tweets.length > 0) {
-          addTweets(tweetsData.tweets);
-        }
-      }
-
-      // Process profiles for change detection
-      if (profilesResponse) {
-        const profilesData = await profilesResponse.json();
-        if (profilesResponse.ok && profilesData.profiles) {
-          checkProfileChanges(profilesData.profiles);
-        }
-      }
-
-      setHasFetchedOnce(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch tweets');
-    } finally {
+    eventSource.onopen = () => {
+      console.log('SSE connected');
+      setIsConnected(true);
       setIsLoading(false);
-    }
-  }, [myList, addTweets, checkProfileChanges]);
+    };
 
-  // Initial fetch - always runs once
-  useEffect(() => {
-    if (!hasFetchedOnce && myList.length > 0) {
-      fetchTweets();
-    }
-  }, [fetchTweets, hasFetchedOnce, myList.length]);
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
 
-  // Polling - only when not hovering
-  useEffect(() => {
-    if (isHoveringFeed) {
-      // Clear interval when hovering
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    } else {
-      // Start polling when not hovering
-      intervalRef.current = setInterval(fetchTweets, 30000);
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+        if (data.type === 'connected') {
+          console.log('Stream connected');
+          setIsConnected(true);
+          setIsLoading(false);
+        } else if (data.type === 'tweets' && data.tweets) {
+          // Add new tweets
+          addTweets(data.tweets);
+        } else if (data.type === 'error') {
+          setError(data.message || 'Stream error');
+        }
+        // Ignore heartbeat messages
+      } catch (err) {
+        console.error('Error parsing SSE message:', err);
       }
     };
-  }, [isHoveringFeed, fetchTweets]);
+
+    eventSource.onerror = (err) => {
+      console.error('SSE error:', err);
+      setIsConnected(false);
+      setError('Connection lost. Reconnecting...');
+
+      // Close and attempt reconnect
+      eventSource.close();
+      eventSourceRef.current = null;
+
+      // Reconnect after 3 seconds
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      reconnectTimeoutRef.current = setTimeout(() => {
+        // This will trigger the useEffect again due to dependency change
+        setError(null);
+      }, 3000);
+    };
+
+    return () => {
+      eventSource.close();
+      eventSourceRef.current = null;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
+  }, [myList, addTweets]);
+
+  // Fetch profiles for change detection (separate from SSE)
+  useEffect(() => {
+    const handlesForProfiles = myList.filter((h) => h.trackProfileUpdates).map((h) => h.handle);
+
+    if (handlesForProfiles.length === 0) return;
+
+    const fetchProfiles = async () => {
+      try {
+        const response = await fetch('/api/twitter/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ handles: handlesForProfiles }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.profiles) {
+            checkProfileChanges(data.profiles);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching profiles:', err);
+      }
+    };
+
+    // Initial fetch
+    fetchProfiles();
+
+    // Poll profiles every 60 seconds (profile changes are less frequent)
+    const interval = setInterval(fetchProfiles, 60000);
+
+    return () => clearInterval(interval);
+  }, [myList, checkProfileChanges]);
 
   return (
     <div
@@ -136,6 +170,16 @@ export function TwitterAlerts() {
       onMouseLeave={() => setHoveringFeed(false)}
     >
       <div className="max-w-[640px] mx-auto w-full">
+        {/* Connection status indicator */}
+        <div className="flex items-center justify-end mb-4">
+          <div className="flex items-center gap-2 text-sm">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />
+            <span className={isConnected ? 'text-green-500' : 'text-gray-500'}>
+              {isConnected ? 'Live' : isLoading ? 'Connecting...' : 'Disconnected'}
+            </span>
+          </div>
+        </div>
+
         {error && (
           <div className="flex items-center gap-2 p-4 bg-red-900/20 border border-red-600/30 rounded-lg mb-4">
             <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
@@ -158,10 +202,10 @@ export function TwitterAlerts() {
           </div>
         )}
 
-        {!isLoading && tweets.length === 0 && myList.length > 0 && hasFetchedOnce && (
+        {!isLoading && tweets.length === 0 && myList.length > 0 && isConnected && (
           <div className="text-center py-12 text-gray-500">
-            <p>No tweets yet.</p>
-            <p className="text-sm mt-2">Tweets will appear here once they are fetched.</p>
+            <p>Waiting for new tweets...</p>
+            <p className="text-sm mt-2">Tweets will appear here in real-time.</p>
           </div>
         )}
 
