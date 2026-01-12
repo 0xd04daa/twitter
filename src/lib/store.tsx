@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { TwitterHandle, Tweet, StoredProfile } from '@/types';
-import { isHandleAllowed } from './data';
 
 interface StoreContextType {
   myList: TwitterHandle[];
@@ -128,11 +127,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    // Check if handle is in the allowed list
-    if (!isHandleAllowed(normalizedHandle)) {
-      return false;
-    }
-
     const newHandle: TwitterHandle = {
       handle: normalizedHandle,
       trackTweets: true,
@@ -206,7 +200,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const validHandles: TwitterHandle[] = [];
         for (const item of listData) {
           const handle = typeof item === 'string' ? item : item.handle;
-          if (handle && isHandleAllowed(handle)) {
+          if (handle) {
             validHandles.push({
               handle: handle.replace('@', '').trim(),
               trackTweets: item.trackTweets ?? true,
