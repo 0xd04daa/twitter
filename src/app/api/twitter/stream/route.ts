@@ -3,6 +3,29 @@ import { Tweet, TweetType } from '@/types';
 
 const API_BASE = 'https://api.twitterapi.io/twitter';
 
+// ============ 全局缓存层 ============
+// 缓存结构：{ handle: { tweets: Tweet[], timestamp: number } }
+const tweetCache = new Map<string, { tweets: Tweet[]; timestamp: number }>();
+const CACHE_TTL = 30000; // 缓存有效期30秒
+
+// 获取缓存的推文，如果缓存过期则返回null
+function getCachedTweets(handle: string): Tweet[] | null {
+  const cached = tweetCache.get(handle.toLowerCase());
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.tweets;
+  }
+  return null;
+}
+
+// 设置缓存
+function setCachedTweets(handle: string, tweets: Tweet[]): void {
+  tweetCache.set(handle.toLowerCase(), {
+    tweets,
+    timestamp: Date.now(),
+  });
+}
+// ============ 缓存层结束 ============
+
 interface MediaItem {
   type: string;
   media_url_https?: string;
@@ -184,6 +207,13 @@ function convertTweet(t: TwitterApiTweet): Tweet {
 }
 
 async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[]> {
+  // 先检查缓存
+  const cached = getCachedTweets(userName);
+  if (cached) {
+    return cached;
+  }
+
+  // 缓存未命中，从API获取
   try {
     const url = new URL(`${API_BASE}/user/last_tweets`);
     url.searchParams.set('userName', userName);
@@ -206,7 +236,12 @@ async function fetchUserTweets(apiKey: string, userName: string): Promise<Tweet[
       return [];
     }
 
-    return data.data.tweets.map(convertTweet);
+    const tweets = data.data.tweets.map(convertTweet);
+
+    // 存入缓存
+    setCachedTweets(userName, tweets);
+
+    return tweets;
   } catch (error) {
     console.error(`Error fetching tweets for ${userName}:`, error);
     return [];
@@ -282,8 +317,8 @@ export async function GET(request: NextRequest) {
       // Initial fetch
       await fetchAndSendTweets();
 
-      // Poll every 10 seconds for new tweets
-      const interval = setInterval(fetchAndSendTweets, 10000);
+      // Poll every 30 seconds for new tweets (reduced from 10s to save API costs)
+      const interval = setInterval(fetchAndSendTweets, 30000);
 
       // Clean up on close
       request.signal.addEventListener('abort', () => {
